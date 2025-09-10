@@ -291,7 +291,82 @@ app.get("/", (req, res) => {
           color: #666;
         }
       </style>
-      <script>
+    </head>
+    <body>
+      <div class="container">
+        <h2>🎬 Téléchargeur YouTube</h2>
+        
+        <!-- Méthode 1: Téléchargement avec URL complète -->
+        <div class="method-section">
+          <h3>📋 Méthode 1: Avec URL complète</h3>
+          <form action="/download" method="get">
+            <input type="text" id="videoUrl" name="url" placeholder="Collez le lien YouTube ici..." 
+                   required onchange="checkVideo()" onpaste="setTimeout(checkVideo, 100)"/><br/>
+            <select name="format" required>
+              <option value="video">📹 Vidéo (MP4)</option>
+              <option value="audio">🎵 Audio (MP3)</option>
+            </select>
+            <select name="quality">
+              <option value="best">🏆 Meilleure qualité</option>
+              <option value="1080">📺 1080p</option>
+              <option value="720">📱 720p</option>
+              <option value="480">💻 480p</option>
+            </select><br/>
+            <button type="submit">⬇️ Télécharger</button>
+          </form>
+        </div>
+
+        <!-- Méthode 2: Téléchargement direct avec ID -->
+        <div class="method-section">
+          <h3>⚡ Méthode 2: Téléchargement direct avec ID vidéo</h3>
+          <div class="direct-download">
+            <p><strong>Format:</strong> <code>http://votre-serveur:3000/download/ID_VIDEO?format=FORMAT&quality=QUALITE</code></p>
+            <div class="examples">
+              <h4>Exemples:</h4>
+              <div class="example-links">
+                <p><strong>Vidéo HD:</strong> <code>/download/dQw4w9WgXcQ?format=video&quality=720</code></p>
+                <p><strong>Audio MP3:</strong> <code>/download/dQw4w9WgXcQ?format=audio</code></p>
+                <p><strong>Meilleure qualité:</strong> <code>/download/dQw4w9WgXcQ?format=video&quality=best</code></p>
+              </div>
+            </div>
+            
+            <div class="quick-generator">
+              <h4>🛠️ Générateur de lien:</h4>
+              <input type="text" id="videoId" placeholder="ID de la vidéo (ex: dQw4w9WgXcQ)" style="width: 200px;"/>
+              <select id="directFormat">
+                <option value="video">Vidéo MP4</option>
+                <option value="audio">Audio MP3</option>
+              </select>
+              <select id="directQuality">
+                <option value="best">Meilleure qualité</option>
+                <option value="1080">1080p</option>
+                <option value="720">720p</option>
+                <option value="480">480p</option>
+              </select>
+              <button type="button" onclick="generateDirectLink()">Générer le lien</button><br/>
+              <input type="text" id="generatedLink" readonly style="width: 100%; margin-top: 10px;" placeholder="Le lien généré apparaîtra ici..."/>
+              <button type="button" onclick="copyToClipboard()" style="margin-top: 5px;">📋 Copier</button>
+              <a id="directDownload" href="#" style="margin-left: 10px; display: none;" target="_blank">⬇️ Télécharger maintenant</a>
+            </div>
+          </div>
+        </div>
+        
+        <div id="loading" class="loading">🔍 Récupération des informations...</div>
+        
+        <div id="loading" class="loading">🔍 Récupération des informations...</div>
+        
+        <div id="videoInfo" class="info-section">
+          <h3>📺 Informations de la vidéo</h3>
+          <p><strong>Titre:</strong> <span id="videoTitle"></span></p>
+          <p><strong>Durée:</strong> <span id="videoDuration"></span></p>
+          <div id="videoFormats"></div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px;">
+          Created by Cameroon Djoukam Aime
+        </div>
+      </div>
+            <script>
         async function checkVideo() {
           const url = document.getElementById('videoUrl').value;
           const infoSection = document.getElementById('videoInfo');
@@ -375,81 +450,6 @@ app.get("/", (req, res) => {
           });
         });
       </script>
-    </head>
-    <body>
-      <div class="container">
-        <h2>🎬 Téléchargeur YouTube</h2>
-        
-        <!-- Méthode 1: Téléchargement avec URL complète -->
-        <div class="method-section">
-          <h3>📋 Méthode 1: Avec URL complète</h3>
-          <form action="/download" method="get">
-            <input type="text" id="videoUrl" name="url" placeholder="Collez le lien YouTube ici..." 
-                   required onchange="checkVideo()" onpaste="setTimeout(checkVideo, 100)"/><br/>
-            <select name="format" required>
-              <option value="video">📹 Vidéo (MP4)</option>
-              <option value="audio">🎵 Audio (MP3)</option>
-            </select>
-            <select name="quality">
-              <option value="best">🏆 Meilleure qualité</option>
-              <option value="1080">📺 1080p</option>
-              <option value="720">📱 720p</option>
-              <option value="480">💻 480p</option>
-            </select><br/>
-            <button type="submit">⬇️ Télécharger</button>
-          </form>
-        </div>
-
-        <!-- Méthode 2: Téléchargement direct avec ID -->
-        <div class="method-section">
-          <h3>⚡ Méthode 2: Téléchargement direct avec ID vidéo</h3>
-          <div class="direct-download">
-            <p><strong>Format:</strong> <code>http://votre-serveur:3000/download/ID_VIDEO?format=FORMAT&quality=QUALITE</code></p>
-            <div class="examples">
-              <h4>Exemples:</h4>
-              <div class="example-links">
-                <p><strong>Vidéo HD:</strong> <code>/download/dQw4w9WgXcQ?format=video&quality=720</code></p>
-                <p><strong>Audio MP3:</strong> <code>/download/dQw4w9WgXcQ?format=audio</code></p>
-                <p><strong>Meilleure qualité:</strong> <code>/download/dQw4w9WgXcQ?format=video&quality=best</code></p>
-              </div>
-            </div>
-            
-            <div class="quick-generator">
-              <h4>🛠️ Générateur de lien:</h4>
-              <input type="text" id="videoId" placeholder="ID de la vidéo (ex: dQw4w9WgXcQ)" style="width: 200px;"/>
-              <select id="directFormat">
-                <option value="video">Vidéo MP4</option>
-                <option value="audio">Audio MP3</option>
-              </select>
-              <select id="directQuality">
-                <option value="best">Meilleure qualité</option>
-                <option value="1080">1080p</option>
-                <option value="720">720p</option>
-                <option value="480">480p</option>
-              </select>
-              <button type="button" onclick="generateDirectLink()">Générer le lien</button><br/>
-              <input type="text" id="generatedLink" readonly style="width: 100%; margin-top: 10px;" placeholder="Le lien généré apparaîtra ici..."/>
-              <button type="button" onclick="copyToClipboard()" style="margin-top: 5px;">📋 Copier</button>
-              <a id="directDownload" href="#" style="margin-left: 10px; display: none;" target="_blank">⬇️ Télécharger maintenant</a>
-            </div>
-          </div>
-        </div>
-        
-        <div id="loading" class="loading">🔍 Récupération des informations...</div>
-        
-        <div id="loading" class="loading">🔍 Récupération des informations...</div>
-        
-        <div id="videoInfo" class="info-section">
-          <h3>📺 Informations de la vidéo</h3>
-          <p><strong>Titre:</strong> <span id="videoTitle"></span></p>
-          <p><strong>Durée:</strong> <span id="videoDuration"></span></p>
-          <div id="videoFormats"></div>
-        </div>
-        
-        <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px;">
-          Created by Cameroon Djoukam Aime
-        </div>
-      </div>
     </body>
     </html>
   `);
