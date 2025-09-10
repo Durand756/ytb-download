@@ -6,7 +6,6 @@ const { spawn } = require("child_process");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Vérification des cookies
 const cookiesPath = path.join(__dirname, "cookies.txt");
 const hasCookies = fs.existsSync(cookiesPath);
 if (!hasCookies) console.warn("⚠️ Aucun fichier cookies.txt trouvé. Certaines vidéos risquent de ne pas être téléchargeables.");
@@ -49,8 +48,10 @@ app.get("/download", (req, res) => {
   if (hasCookies) args.unshift("--cookies", cookiesPath);
 
   if (format === "mp3") {
-    args.unshift("-x", "--audio-format", "mp3");
+    args.unshift("-x", "--audio-format", "mp3"); // conversion audio
+    args.push("--ffmpeg-location", "/usr/bin/ffmpeg"); // indique ffmpeg
   } else if (format === "mp4") {
+    args.unshift("--merge-output-format", "mp4"); // merge audio+vidéo
     if (quality !== "best") {
       args.unshift("-f", `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]`);
     } else {
