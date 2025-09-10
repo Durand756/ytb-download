@@ -351,9 +351,7 @@ app.get("/", (req, res) => {
           </div>
         </div>
         
-        <div id="loading" class="loading">🔍 Récupération des informations...</div>
-        
-        <div id="loading" class="loading">🔍 Récupération des informations...</div>
+        <div id="loadingIndicator" class="loading">🔍 Récupération des informations...</div>
         
         <div id="videoInfo" class="info-section">
           <h3>📺 Informations de la vidéo</h3>
@@ -366,11 +364,12 @@ app.get("/", (req, res) => {
           Created by Cameroon Djoukam Aime
         </div>
       </div>
-            <script>
+      
+      <script>
         async function checkVideo() {
           const url = document.getElementById('videoUrl').value;
           const infoSection = document.getElementById('videoInfo');
-          const loading = document.getElementById('loading');
+          const loading = document.getElementById('loadingIndicator');
           
           if (!url) {
             infoSection.style.display = 'none';
