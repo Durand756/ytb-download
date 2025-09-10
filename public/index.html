@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Téléchargeur YouTube</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        h2 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .method-section {
+            margin-bottom: 30px;
+            padding: 25px;
+            border: 2px solid #e3f2fd;
+            border-radius: 12px;
+            background: linear-gradient(145deg, #f8f9ff, #ffffff);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        
+        .method-section h3 {
+            color: #1976d2;
+            margin-top: 0;
+            font-size: 1.4rem;
+            border-bottom: 2px solid #e3f2fd;
+            padding-bottom: 10px;
+        }
+        
+        input, select, button { 
+            padding: 12px 15px;
+            margin: 8px 5px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        input[type="text"] { 
+            width: calc(100% - 40px);
+            max-width: 500px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #1976d2;
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+        }
+        
+        select {
+            background-color: white;
+            cursor: pointer;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #1976d2, #1565c0);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #1565c0, #0d47a1);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(25, 118, 210, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .info-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: linear-gradient(145deg, #e8f5e8, #f1f8e9);
+            border-radius: 10px;
+            border-left: 5px solid #4caf50;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .direct-download {
+            margin-top: 15px;
+        }
+        
+        .examples {
+            margin: 15px 0;
+            padding: 15px;
+            background: linear-gradient(145deg, #fff3e0, #ffeaa7);
+            border-radius: 8px;
+            border-left: 4px solid #ff9800;
+        }
+        
+        .example-links code {
+            background-color: rgba(0,0,0,0.05);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .quick-generator {
+            margin-top: 20px;
+            padding: 20px;
+            background: linear-gradient(145deg, #f3e5f5, #e1bee7);
+            border-radius: 10px;
+            border: 2px solid #9c27b0;
+        }
+        
+        .format-info {
+            margin-top: 10px;
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #2196f3;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .loading {
+            display: none;
+            color: #666;
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+        }
+        
+        .loading.show {
+            display: block;
+            animation: pulse 1.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes pulse {
+            from { opacity: 0.6; }
+            to { opacity: 1; }
+        }
+        
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin: 15px 0;
+        }
+        
+        .form-row input[type="text"] {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .copy-success {
+            background: #4caf50 !important;
+            animation: copySuccess 2s ease;
+        }
+        
+        @keyframes copySuccess {
+            0% { background: #4caf50; }
+            50% { background: #66bb6a; }
+            100% { background: #4caf50; }
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e3f2fd;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .footer a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                padding: 20px;
+            }
+            
+            h2 {
+                font-size: 2rem;
+            }
+            
+            .form-row {
+                flex-direction: column;
+            }
+            
+            input[type="text"] {
+                width: calc(100% - 30px);
+            }
+        }
+        
+        .error-message {
+            background: linear-gradient(145deg, #ffebee, #ffcdd2);
+            border: 2px solid #f44336;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #c62828;
+            display: none;
+        }
+        
+        .success-message {
+            background: linear-gradient(145deg, #e8f5e8, #c8e6c9);
+            border: 2px solid #4caf50;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            color: #2e7d32;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🎬 Téléchargeur YouTube</h2>
+        
+        <!-- Messages d'erreur et de succès -->
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+        
+        <!-- Méthode 1: Téléchargement avec URL complète -->
+        <div class="method-section">
+            <h3>📋 Méthode 1: Avec URL complète</h3>
+            <form action="/download" method="get">
+                <div class="form-row">
+                    <input type="text" id="videoUrl" name="url" placeholder="Collez le lien YouTube ici..." required />
+                </div>
+                <div class="form-row">
+                    <select name="format" required>
+                        <option value="video">📹 Vidéo (MP4)</option>
+                        <option value="audio">🎵 Audio (MP3)</option>
+                    </select>
+                    <select name="quality">
+                        <option value="best">🏆 Meilleure qualité</option>
+                        <option value="1080">📺 1080p</option>
+                        <option value="720">📱 720p</option>
+                        <option value="480">💻 480p</option>
+                    </select>
+                    <button type="submit">⬇️ Télécharger</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Méthode 2: Téléchargement direct avec ID -->
+        <div class="method-section">
+            <h3>⚡ Méthode 2: Téléchargement direct avec ID vidéo</h3>
+            <div class="direct-download">
+                <p><strong>Format:</strong> <code>http://votre-serveur:3000/download/ID_VIDEO?format=FORMAT&quality=QUALITE</code></p>
+                <div class="examples">
+                    <h4>Exemples d'utilisation:</h4>
+                    <div class="example-links">
+                        <p><strong>Vidéo HD:</strong> <code>/download/dQw4w9WgXcQ?format=video&quality=720</code></p>
+                        <p><strong>Audio MP3:</strong> <code>/download/dQw4w9WgXcQ?format=audio</code></p>
+                        <p><strong>Meilleure qualité:</strong> <code>/download/dQw4w9WgXcQ?format=video&quality=best</code></p>
+                    </div>
+                </div>
+                
+                <div class="quick-generator">
+                    <h4>🛠️ Générateur de lien direct:</h4>
+                    <div class="form-row">
+                        <input type="text" id="videoId" placeholder="ID de la vidéo (ex: dQw4w9WgXcQ)" />
+                        <select id="directFormat">
+                            <option value="video">Vidéo MP4</option>
+                            <option value="audio">Audio MP3</option>
+                        </select>
+                        <select id="directQuality">
+                            <option value="best">Meilleure qualité</option>
+                            <option value="1080">1080p</option>
+                            <option value="720">720p</option>
+                            <option value="480">480p</option>
+                        </select>
+                        <button type="button" id="generateBtn">Générer</button>
+                    </div>
+                    <div class="form-row">
+                        <input type="text" id="generatedLink" readonly placeholder="Le lien généré apparaîtra ici..." />
+                        <button type="button" id="copyBtn">📋 Copier</button>
+                        <a id="directDownload" href="#" style="display: none;" target="_blank">
+                            <button type="button">⬇️ Télécharger</button>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="loadingIndicator" class="loading">🔍 Récupération des informations de la vidéo...</div>
+        
+        <div id="videoInfo" class="info-section">
+            <h3>📺 Informations de la vidéo</h3>
+            <p><strong>Titre:</strong> <span id="videoTitle"></span></p>
+            <p><strong>Durée:</strong> <span id="videoDuration"></span></p>
+            <div id="videoFormats"></div>
+        </div>
+        
+        <div class="footer">
+            <p>Created by <strong>Cameroon Djoukam Aime</strong></p>
+            <p><a href="https://github.com/yt-dlp/yt-dlp" target="_blank">Powered by yt-dlp</a></p>
+        </div>
+    </div>
+    
+    <script>
+        // Variables globales
+        const elements = {
+            videoUrl: null,
+            videoId: null,
+            generateBtn: null,
+            copyBtn: null,
+            generatedLink: null,
+            directDownload: null,
+            loadingIndicator: null,
+            videoInfo: null,
+            videoTitle: null,
+            videoDuration: null,
+            videoFormats: null,
+            errorMessage: null,
+            successMessage: null,
+            directFormat: null,
+            directQuality: null
+        };
+
+        // Initialisation des éléments DOM
+        function initElements() {
+            elements.videoUrl = document.getElementById('videoUrl');
+            elements.videoId = document.getElementById('videoId');
+            elements.generateBtn = document.getElementById('generateBtn');
+            elements.copyBtn = document.getElementById('copyBtn');
+            elements.generatedLink = document.getElementById('generatedLink');
+            elements.directDownload = document.getElementById('directDownload');
+            elements.loadingIndicator = document.getElementById('loadingIndicator');
+            elements.videoInfo = document.getElementById('videoInfo');
+            elements.videoTitle = document.getElementById('videoTitle');
+            elements.videoDuration = document.getElementById('videoDuration');
+            elements.videoFormats = document.getElementById('videoFormats');
+            elements.errorMessage = document.getElementById('errorMessage');
+            elements.successMessage = document.getElementById('successMessage');
+            elements.directFormat = document.getElementById('directFormat');
+            elements.directQuality = document.getElementById('directQuality');
+        }
+
+        // Fonction pour afficher les messages
+        function showMessage(type, message) {
+            const errorEl = elements.errorMessage;
+            const successEl = elements.successMessage;
+            
+            // Cacher tous les messages
+            errorEl.style.display = 'none';
+            successEl.style.display = 'none';
+            
+            if (type === 'error') {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+                // Scroll vers le message
+                errorEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else if (type === 'success') {
+                successEl.textContent = message;
+                successEl.style.display = 'block';
+                // Scroll vers le message
+                successEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            
+            // Auto-hide après 5 secondes
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+                successEl.style.display = 'none';
+            }, 5000);
+        }
+
+        // Fonction pour vérifier et afficher les infos de la vidéo
+        async function checkVideo() {
+            const url = elements.videoUrl.value.trim();
+            
+            if (!url) {
+                elements.videoInfo.style.display = 'none';
+                return;
+            }
+            
+            // Vérifier si c'est une URL YouTube valide
+            if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+                showMessage('error', 'Veuillez entrer une URL YouTube valide');
+                return;
+            }
+            
+            elements.loadingIndicator.classList.add('show');
+            elements.videoInfo.style.display = 'none';
+            
+            try {
+                const response = await fetch('/info?url=' + encodeURIComponent(url));
+                const data = await response.json();
+                
+                if (data.success) {
+                    elements.videoTitle.textContent = data.title;
+                    elements.videoDuration.textContent = data.duration;
+                    
+                    // Afficher les formats disponibles
+                    elements.videoFormats.innerHTML = data.formats.map(f => 
+                        `<div class="format-info"><strong>${f.type}:</strong> ${f.quality} - ${f.size}</div>`
+                    ).join('');
+                    
+                    elements.videoInfo.style.display = 'block';
+                    showMessage('success', 'Informations de la vidéo récupérées avec succès!');
+                } else {
+                    showMessage('error', 'Erreur: ' + (data.error || 'Impossible de récupérer les informations'));
+                }
+            } catch (error) {
+                console.error('Erreur checkVideo:', error);
+                showMessage('error', 'Erreur de connexion: ' + error.message);
+            } finally {
+                elements.loadingIndicator.classList.remove('show');
+            }
+        }
+        
+        // Fonction pour extraire l'ID d'une URL YouTube
+        function extractVideoId(input) {
+            const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
+            const match = input.match(regex);
+            return match ? match[1] : input;
+        }
+        
+        // Fonction pour générer le lien direct
+        function generateDirectLink() {
+            const videoIdInput = elements.videoId.value.trim();
+            const format = elements.directFormat.value;
+            const quality = elements.directQuality.value;
+            
+            if (!videoIdInput) {
+                showMessage('error', 'Veuillez entrer un ID de vidéo ou une URL YouTube');
+                return;
+            }
+            
+            // Extraire l'ID propre depuis l'URL ou utiliser directement l'ID
+            const cleanId = extractVideoId(videoIdInput);
+            
+            if (cleanId === videoIdInput && videoIdInput.includes('/')) {
+                showMessage('error', 'Format d\'URL non reconnu. Utilisez une URL youtube.com ou youtu.be valide');
+                return;
+            }
+            
+            const baseUrl = window.location.origin;
+            const link = `${baseUrl}/download/${cleanId}?format=${format}&quality=${quality}`;
+            
+            elements.generatedLink.value = link;
+            elements.directDownload.href = link;
+            elements.directDownload.style.display = 'inline-block';
+            
+            showMessage('success', 'Lien direct généré avec succès!');
+        }
+        
+        // Fonction pour copier le lien dans le presse-papiers
+        async function copyToClipboard() {
+            const link = elements.generatedLink.value;
+            
+            if (!link) {
+                showMessage('error', 'Aucun lien à copier. Générez d\'abord un lien.');
+                return;
+            }
+            
+            try {
+                await navigator.clipboard.writeText(link);
+                
+                // Animation de succès sur le bouton
+                const originalText = elements.copyBtn.innerHTML;
+                elements.copyBtn.classList.add('copy-success');
+                elements.copyBtn.innerHTML = '✅ Copié!';
+                
+                showMessage('success', 'Lien copié dans le presse-papiers!');
+                
+                // Remettre le bouton normal après 2 secondes
+                setTimeout(() => {
+                    elements.copyBtn.classList.remove('copy-success');
+                    elements.copyBtn.innerHTML = originalText;
+                }, 2000);
+                
+            } catch (err) {
+                console.error('Erreur copie:', err);
+                // Fallback pour les navigateurs qui ne supportent pas l'API Clipboard
+                elements.generatedLink.select();
+                document.execCommand('copy');
+                showMessage('success', 'Lien copié dans le presse-papiers!');
+            }
+        }
+        
+        // Fonction de debounce pour limiter les appels API
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        // Version debounced de checkVideo
+        const debouncedCheckVideo = debounce(checkVideo, 1000);
+        
+        // Initialisation au chargement de la page
+        document.addEventListener('DOMContentLoaded', function() {
+            initElements();
+            
+            // Vérification que tous les éléments sont trouvés
+            const missingElements = Object.entries(elements).filter(([key, value]) => !value);
+            if (missingElements.length > 0) {
+                console.warn('Éléments DOM manquants:', missingElements.map(([key]) => key));
+            }
+            
+            // Event listeners
+            if (elements.videoUrl) {
+                elements.videoUrl.addEventListener('input', debouncedCheckVideo);
+                elements.videoUrl.addEventListener('paste', function() {
+                    // Petite attente pour que la valeur soit mise à jour après le paste
+                    setTimeout(debouncedCheckVideo, 100);
+                });
+            }
+            
+            if (elements.generateBtn) {
+                elements.generateBtn.addEventListener('click', generateDirectLink);
+            }
+            
+            if (elements.copyBtn) {
+                elements.copyBtn.addEventListener('click', copyToClipboard);
+            }
+            
+            // Event listener pour le champ videoId
+            if (elements.videoId) {
+                elements.videoId.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        generateDirectLink();
+                    }
+                });
+            }
+            
+            // Event listener pour les changements de format/qualité
+            if (elements.directFormat) {
+                elements.directFormat.addEventListener('change', function() {
+                    if (elements.videoId.value.trim()) {
+                        generateDirectLink();
+                    }
+                });
+            }
+            
+            if (elements.directQuality) {
+                elements.directQuality.addEventListener('change', function() {
+                    if (elements.videoId.value.trim()) {
+                        generateDirectLink();
+                    }
+                });
+            }
+            
+            console.log('✅ Interface YouTube Downloader initialisée');
+        });
+        
+        // Gestion des erreurs globales
+        window.addEventListener('error', function(e) {
+            console.error('Erreur JavaScript:', e.error);
+            showMessage('error', 'Erreur inattendue: ' + e.message);
+        });
+        
+        // Gestion des erreurs de promesses non catchées
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('Promesse rejetée:', e.reason);
+            showMessage('error', 'Erreur de connexion: ' + e.reason);
+        });
+    </script>
+</body>
+</html>
