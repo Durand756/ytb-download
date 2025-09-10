@@ -176,20 +176,23 @@ app.get("/", (req, res) => {
           let estimatedSize = 'Calcul...';
           
           if (format === 'audio') {
-            // Audio MP3 ~128kbps = ~16KB/s
-            const sizeBytes = videoInfo.duration * 16 * 1024;
+            // Audio MP3 ~192kbps = ~24KB/s
+            const sizeBytes = videoInfo.duration * 24 * 1024;
             estimatedSize = formatFileSize(sizeBytes);
           } else {
-            // Estimation vidéo selon qualité
-            const rates = {
-              '480': 1000,   // 1 Mbps
-              '720': 2500,   // 2.5 Mbps  
-              '1080': 5000,  // 5 Mbps
-              'best': 8000   // 8 Mbps
-            };
-            const rate = rates[quality] || 2500;
-            const sizeBytes = (videoInfo.duration * rate * 1024) / 8; // Convert to bytes
-            estimatedSize = formatFileSize(sizeBytes);
+            // Estimation vidéo selon qualité + utiliser la taille réelle si disponible
+            if (videoInfo.filesize > 0) {
+              // Si on a une taille réelle, l'utiliser comme base
+              const rates = { '480': 0.3, '720': 0.6, '1080': 1.0, 'best': 1.2 };
+              const multiplier = rates[quality] || 0.6;
+              estimatedSize = formatFileSize(videoInfo.filesize * multiplier);
+            } else {
+              // Sinon estimation par débit
+              const rates = { '480': 1200, '720': 2800, '1080': 5500, 'best': 8500 };
+              const rate = rates[quality] || 2800;
+              const sizeBytes = (videoInfo.duration * rate * 1024) / 8;
+              estimatedSize = formatFileSize(sizeBytes);
+            }
           }
           
           document.getElementById('estimatedSize').textContent = estimatedSize;
