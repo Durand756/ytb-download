@@ -437,11 +437,17 @@ app.get("/", (req, res) => {
         
         <div id="loading" class="loading">🔍 Récupération des informations...</div>
         
+        <div id="loading" class="loading">🔍 Récupération des informations...</div>
+        
         <div id="videoInfo" class="info-section">
           <h3>📺 Informations de la vidéo</h3>
           <p><strong>Titre:</strong> <span id="videoTitle"></span></p>
           <p><strong>Durée:</strong> <span id="videoDuration"></span></p>
           <div id="videoFormats"></div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px;">
+          Created by Cameroon Djoukam Aime
         </div>
       </div>
     </body>
