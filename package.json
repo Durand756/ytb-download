@@ -1,17 +1,15 @@
 {
-  "name": "yt-downloader-railway",
+  "name": "yt-downloader",
   "version": "1.0.0",
-  "description": "Téléchargeur YouTube avec ytdl-core et fallback yt-dlp CLI",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js",
-    "postinstall": "apt-get update && apt-get install -y yt-dlp"
+    "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "ytdl-core": "^4.11.5"
-  },
-  "engines": {
-    "node": ">=16"
+    "ytdl-core": "^4.11.5",
+    "yt-dlp-exec": "^2.4.4",
+    "youtube-dl-exec": "^2.4.3",
+    "ytdlp-nodejs": "1.1.3"
   }
 }
