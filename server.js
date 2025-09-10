@@ -1,19 +1,15 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
-const ytdlp = require("yt-dlp-exec");
+const { spawn } = require("child_process");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Vérification du fichier cookies
 const cookiesPath = path.join(__dirname, "cookies.txt");
 const hasCookies = fs.existsSync(cookiesPath);
-if (!hasCookies) {
-  console.warn("⚠️ Aucun fichier cookies.txt trouvé. Certaines vidéos risquent de ne pas être téléchargeables (erreur 403 ou demande de connexion).");
-}
+if (!hasCookies) console.warn("⚠️ Aucun fichier cookies.txt trouvé. Certaines vidéos risquent de ne pas être téléchargeables.");
 
-// Page d'accueil
 app.get("/", (req, res) => {
   res.send(`
     <h2>✅ Téléchargeur YouTube</h2>
@@ -24,8 +20,7 @@ app.get("/", (req, res) => {
   `);
 });
 
-// Route téléchargement
-app.get("/download", async (req, res) => {
+app.get("/download", (req, res) => {
   const url = req.query.url;
   if (!url) return res.status(400).send("❌ Paramètre 'url' manquant !");
 
@@ -34,29 +29,19 @@ app.get("/download", async (req, res) => {
 
   console.log(`⚡ Début du téléchargement : ${url}`);
 
-  try {
-    const options = {
-      output: "-",      // Stream direct vers le client
-      format: "mp4",
-      quiet: true
-    };
-    if (hasCookies) options.cookies = cookiesPath;
+  const args = ["-o", "-", "-f", "mp4", url];
+  if (hasCookies) args.unshift("--cookies", cookiesPath);
 
-    const stream = ytdlp(url, options, { stdio: ["ignore", "pipe", "pipe"] });
+  const ytProcess = spawn("yt-dlp", args, { stdio: ["ignore", "pipe", "pipe"] });
 
-    stream.stdout.pipe(res);
+  ytProcess.stdout.pipe(res);
 
-    stream.stderr.on("data", data => console.error(data.toString()));
-    stream.on("close", () => console.log(`✅ Téléchargement terminé : ${filename}`));
-    stream.on("error", err => {
-      console.error("❌ Erreur yt-dlp:", err.message);
-      res.end("Erreur lors du téléchargement.");
-    });
-
-  } catch (err) {
-    console.error("❌ Exception:", err.message);
-    res.status(500).send("Erreur serveur lors du téléchargement.");
-  }
+  ytProcess.stderr.on("data", data => console.error(data.toString()));
+  ytProcess.on("close", () => console.log(`✅ Téléchargement terminé : ${filename}`));
+  ytProcess.on("error", err => {
+    console.error("❌ Erreur yt-dlp:", err.message);
+    res.end("Erreur lors du téléchargement.");
+  });
 });
 
 app.listen(PORT, () => console.log(`🚀 Serveur lancé sur le port ${PORT}`));
