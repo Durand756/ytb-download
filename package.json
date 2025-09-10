@@ -1,14 +1,13 @@
 {
   "name": "youtube-downloader-railway",
   "version": "1.0.0",
-  "description": "Téléchargeur YouTube fiable avec yt-dlp et cookies.txt pour Railway",
+  "description": "Téléchargeur YouTube fiable via yt-dlp (CLI) pour Railway",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "yt-dlp-exec": "^2.4.4"
+    "express": "^4.18.2"
   },
   "engines": {
     "node": ">=16"
