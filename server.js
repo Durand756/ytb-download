@@ -366,7 +366,101 @@ app.get("/", (req, res) => {
       </div>
       
       <script>
-        // Attendre que le DOM soit chargé
+        // Fonctions globales pour les attributs HTML
+        async function checkVideo() {
+          const url = document.getElementById('videoUrl').value;
+          const infoSection = document.getElementById('videoInfo');
+          const loading = document.getElementById('loadingIndicator');
+          
+          if (!url) {
+            infoSection.style.display = 'none';
+            return;
+          }
+          
+          loading.style.display = 'block';
+          infoSection.style.display = 'none';
+          
+          try {
+            const response = await fetch('/info?url=' + encodeURIComponent(url));
+            const data = await response.json();
+            
+            if (data.success) {
+              document.getElementById('videoTitle').textContent = data.title;
+              document.getElementById('videoDuration').textContent = data.duration;
+              document.getElementById('videoFormats').innerHTML = data.formats.map(function(f) {
+                return '<div class="format-info"><strong>' + f.type + ':</strong> ' + f.quality + ' - ' + f.size + '</div>';
+              }).join('');
+              infoSection.style.display = 'block';
+            } else {
+              alert('Erreur: ' + data.error);
+            }
+          } catch (error) {
+            alert('Erreur de connexion: ' + error.message);
+          }
+          
+          loading.style.display = 'none';
+        }
+        
+        function generateDirectLink() {
+          const videoId = document.getElementById('videoId').value.trim();
+          const format = document.getElementById('directFormat').value;
+          const quality = document.getElementById('directQuality').value;
+          
+          if (!videoId) {
+            alert('Veuillez entrer un ID de vidéo');
+            return;
+          }
+          
+          // Extraire l'ID si c'est une URL complète
+          let cleanId = videoId;
+          if (videoId.includes('youtube.com/watch?v=')) {
+            cleanId = videoId.split('v=')[1].split('&')[0];
+          } else if (videoId.includes('youtu.be/')) {
+            cleanId = videoId.split('youtu.be/')[1].split('?')[0];
+          }
+          
+          const baseUrl = window.location.origin;
+          const link = baseUrl + '/download/' + cleanId + '?format=' + format + '&quality=' + quality;
+          
+          document.getElementById('generatedLink').value = link;
+          const downloadBtn = document.getElementById('directDownload');
+          downloadBtn.href = link;
+          downloadBtn.style.display = 'block';
+        }
+        
+        function copyToClipboard() {
+          const linkField = document.getElementById('generatedLink');
+          if (!linkField.value) {
+            alert('Générez d\'abord un lien');
+            return;
+          }
+          
+          linkField.select();
+          linkField.setSelectionRange(0, 99999);
+          
+          try {
+            document.execCommand('copy');
+            alert('Lien copié dans le presse-papier!');
+          } catch (err) {
+            // Fallback pour les navigateurs modernes
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(linkField.value).then(function() {
+                alert('Lien copié dans le presse-papier!');
+              }).catch(function() {
+                alert('Impossible de copier automatiquement. Veuillez copier manuellement.');
+              });
+            } else {
+              alert('Impossible de copier automatiquement. Veuillez copier manuellement.');
+            }
+          }
+        }
+        
+        // Exposer les fonctions globalement pour les attributs HTML
+        window.checkVideo = checkVideo;
+        window.generateDirectLink = generateDirectLink;
+        window.copyToClipboard = copyToClipboard;
+        
+        // Attendre que le DOM soit chargé pour les event listeners
         document.addEventListener('DOMContentLoaded', function() {
           // Références aux éléments
           const videoUrlInput = document.getElementById('videoUrl');
@@ -374,108 +468,30 @@ app.get("/", (req, res) => {
           const generateBtn = document.getElementById('generateBtn');
           const copyBtn = document.getElementById('copyBtn');
           
-          // Fonction pour vérifier les informations de la vidéo
-          async function checkVideo() {
-            const url = videoUrlInput.value;
-            const infoSection = document.getElementById('videoInfo');
-            const loading = document.getElementById('loadingIndicator');
-            
-            if (!url) {
-              infoSection.style.display = 'none';
-              return;
-            }
-            
-            loading.style.display = 'block';
-            infoSection.style.display = 'none';
-            
-            try {
-              const response = await fetch('/info?url=' + encodeURIComponent(url));
-              const data = await response.json();
-              
-              if (data.success) {
-                document.getElementById('videoTitle').textContent = data.title;
-                document.getElementById('videoDuration').textContent = data.duration;
-                document.getElementById('videoFormats').innerHTML = data.formats.map(function(f) {
-                  return '<div class="format-info"><strong>' + f.type + ':</strong> ' + f.quality + ' - ' + f.size + '</div>';
-                }).join('');
-                infoSection.style.display = 'block';
-              } else {
-                alert('Erreur: ' + data.error);
-              }
-            } catch (error) {
-              alert('Erreur de connexion: ' + error.message);
-            }
-            
-            loading.style.display = 'none';
+          // Attacher les événements via event listeners (plus propre)
+          if (videoUrlInput) {
+            videoUrlInput.addEventListener('change', checkVideo);
+            videoUrlInput.addEventListener('paste', function() {
+              setTimeout(checkVideo, 100);
+            });
           }
           
-          // Fonction pour générer le lien direct
-          function generateDirectLink() {
-            const videoId = videoIdInput.value.trim();
-            const format = document.getElementById('directFormat').value;
-            const quality = document.getElementById('directQuality').value;
-            
-            if (!videoId) {
-              alert('Veuillez entrer un ID de vidéo');
-              return;
-            }
-            
-            // Extraire l'ID si c'est une URL complète
-            let cleanId = videoId;
-            if (videoId.includes('youtube.com/watch?v=')) {
-              cleanId = videoId.split('v=')[1].split('&')[0];
-            } else if (videoId.includes('youtu.be/')) {
-              cleanId = videoId.split('youtu.be/')[1].split('?')[0];
-            }
-            
-            const baseUrl = window.location.origin;
-            const link = baseUrl + '/download/' + cleanId + '?format=' + format + '&quality=' + quality;
-            
-            document.getElementById('generatedLink').value = link;
-            const downloadBtn = document.getElementById('directDownload');
-            downloadBtn.href = link;
-            downloadBtn.style.display = 'block';
+          if (generateBtn) {
+            generateBtn.addEventListener('click', generateDirectLink);
           }
           
-          // Fonction pour copier dans le presse-papier
-          function copyToClipboard() {
-            const linkField = document.getElementById('generatedLink');
-            if (!linkField.value) {
-              alert('Générez d\'abord un lien');
-              return;
-            }
-            
-            linkField.select();
-            linkField.setSelectionRange(0, 99999);
-            
-            try {
-              document.execCommand('copy');
-              alert('Lien copié dans le presse-papier!');
-            } catch (err) {
-              // Fallback pour les navigateurs modernes
-              navigator.clipboard.writeText(linkField.value).then(function() {
-                alert('Lien copié dans le presse-papier!');
-              }).catch(function() {
-                alert('Impossible de copier automatiquement. Veuillez copier manuellement.');
-              });
-            }
+          if (copyBtn) {
+            copyBtn.addEventListener('click', copyToClipboard);
           }
-          
-          // Attacher les événements
-          videoUrlInput.addEventListener('change', checkVideo);
-          videoUrlInput.addEventListener('paste', function() {
-            setTimeout(checkVideo, 100);
-          });
-          
-          generateBtn.addEventListener('click', generateDirectLink);
-          copyBtn.addEventListener('click', copyToClipboard);
           
           // Auto-génération quand on tape l'ID
-          videoIdInput.addEventListener('input', function() {
-            if (this.value.trim()) {
-              generateDirectLink();
-            }
-          });
+          if (videoIdInput) {
+            videoIdInput.addEventListener('input', function() {
+              if (this.value.trim()) {
+                generateDirectLink();
+              }
+            });
+          }
         });
       </script>
     </body>
