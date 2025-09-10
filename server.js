@@ -401,7 +401,7 @@ app.get("/download", async (req, res) => {
     console.error('💀 Erreur globale:', error.message);
     res.status(500).send('❌ Erreur interne: ' + error.message);
   }
-});
+}
 
 // Gestion des erreurs globales
 app.use((err, req, res, next) => {
