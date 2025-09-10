@@ -12,63 +12,7 @@ if (!hasCookies) {
   console.warn("⚠️ Aucun fichier cookies.txt trouvé.");
 }
 
-// Fonction pour obtenir les infos vidéo
-async function getVideoInfo(url) {
-  return new Promise((resolve, reject) => {
-    const args = [
-      '--get-title',
-      '--get-duration', 
-      '--get-filesize',
-      '--print-json'
-    ];
-    
-    if (hasCookies) args.unshift('--cookies', cookiesPath);
-    args.push(url);
-
-    const process = spawn('yt-dlp', args);
-    let output = '';
-    let error = '';
-
-    process.stdout.on('data', (data) => {
-      output += data.toString();
-    });
-
-    process.stderr.on('data', (data) => {
-      error += data.toString();
-    });
-
-    process.on('close', (code) => {
-      if (code === 0) {
-        try {
-          const lines = output.trim().split('\n');
-          const jsonLine = lines.find(line => line.startsWith('{'));
-          const info = jsonLine ? JSON.parse(jsonLine) : {};
-          
-          resolve({
-            title: info.title || 'video',
-            duration: info.duration || 0,
-            filesize: info.filesize || info.filesize_approx || 0,
-            formats: info.formats || []
-          });
-        } catch (e) {
-          reject(new Error('Impossible de parser les infos vidéo'));
-        }
-      } else {
-        reject(new Error(error || 'Erreur lors de la récupération des infos'));
-      }
-    });
-  });
-}
-
-// Fonction pour formater la taille
-function formatFileSize(bytes) {
-  if (!bytes) return 'Taille inconnue';
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-}
-
-// Page d'accueil avec aperçu des tailles
+// Page d'accueil
 app.get("/", (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -77,281 +21,180 @@ app.get("/", (req, res) => {
       <meta charset="UTF-8">
       <title>Téléchargeur YouTube</title>
       <style>
-        body { font-family: Arial; margin: 50px; background: #f5f5f5; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        input, select, button { padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; }
-        input[type="text"] { width: 100%; box-sizing: border-box; }
-        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background: #0056b3; }
-        #info { margin: 20px 0; padding: 15px; background: #e8f4fd; border-radius: 5px; display: none; }
-        .loading { text-align: center; margin: 20px 0; }
+        body { font-family: Arial; margin: 50px; }
+        input, select, button { padding: 10px; margin: 5px; }
+        input[type="text"] { width: 400px; }
       </style>
     </head>
     <body>
-      <div class="container">
-        <h2>🎬 Téléchargeur YouTube</h2>
-        
-        <div>
-          <input type="text" id="url" placeholder="Collez le lien YouTube ici..." />
-          <button onclick="getInfo()">📊 Voir les infos</button>
-        </div>
-        
-        <div id="loading" class="loading" style="display:none;">
-          <p>🔍 Analyse de la vidéo...</p>
-        </div>
-        
-        <div id="info">
-          <h3 id="title"></h3>
-          <p id="duration"></p>
-          <form action="/download" method="get">
-            <input type="hidden" id="hiddenUrl" name="url" />
-            
-            <label>📁 Format :</label><br/>
-            <select name="format" id="format" onchange="updateSizeInfo()">
-              <option value="audio">🎵 Audio MP3</option>
-              <option value="video">📹 Vidéo MP4</option>
-            </select><br/>
-            
-            <label>🎯 Qualité :</label><br/>
-            <select name="quality" id="quality" onchange="updateSizeInfo()">
-              <option value="best">🏆 Meilleure qualité</option>
-              <option value="1080">📺 1080p</option>
-              <option value="720">📱 720p</option>
-              <option value="480">💻 480p</option>
-            </select><br/>
-            
-            <div id="sizeInfo" style="margin: 15px 0; padding: 10px; background: #fff3cd; border-radius: 5px;">
-              <strong>📏 Taille estimée : <span id="estimatedSize">Calculer...</span></strong>
-            </div>
-            
-            <button type="submit">⬇️ Télécharger</button>
-          </form>
-        </div>
-      </div>
-
-      <script>
-        let videoInfo = null;
-        
-        async function getInfo() {
-          const url = document.getElementById('url').value;
-          if (!url) {
-            alert('Veuillez entrer une URL YouTube');
-            return;
-          }
-          
-          document.getElementById('loading').style.display = 'block';
-          document.getElementById('hiddenUrl').value = url;
-          
-          try {
-            const response = await fetch('/info?url=' + encodeURIComponent(url));
-            const data = await response.json();
-            
-            if (data.error) {
-              console.log('Info non disponible, mais téléchargement possible');
-            }
-            
-            videoInfo = data;
-            document.getElementById('loading').style.display = 'none';
-            updateSizeInfo();
-            
-          } catch (error) {
-            console.log('Info non disponible, mais téléchargement possible');
-            document.getElementById('loading').style.display = 'none';
-            videoInfo = { duration: 180, title: 'Vidéo YouTube' }; // Valeurs par défaut
-            updateSizeInfo();
-          }
-        }
-        
-        function updateSizeInfo() {
-          if (!videoInfo) return;
-          
-          const format = document.getElementById('format').value;
-          const quality = document.getElementById('quality').value;
-          
-          let estimatedSize = 'Calcul...';
-          
-          if (format === 'audio') {
-            // Audio MP3 ~192kbps = ~24KB/s
-            const sizeBytes = videoInfo.duration * 24 * 1024;
-            estimatedSize = formatFileSize(sizeBytes);
-          } else {
-            // Estimation vidéo selon qualité + utiliser la taille réelle si disponible
-            if (videoInfo.filesize > 0) {
-              // Si on a une taille réelle, l'utiliser comme base
-              const rates = { '480': 0.3, '720': 0.6, '1080': 1.0, 'best': 1.2 };
-              const multiplier = rates[quality] || 0.6;
-              estimatedSize = formatFileSize(videoInfo.filesize * multiplier);
-            } else {
-              // Sinon estimation par débit
-              const rates = { '480': 1200, '720': 2800, '1080': 5500, 'best': 8500 };
-              const rate = rates[quality] || 2800;
-              const sizeBytes = (videoInfo.duration * rate * 1024) / 8;
-              estimatedSize = formatFileSize(sizeBytes);
-            }
-          }
-          
-          document.getElementById('estimatedSize').textContent = estimatedSize;
-        }
-        
-        function formatDuration(seconds) {
-          if (!seconds) return 'Inconnue';
-          const mins = Math.floor(seconds / 60);
-          const secs = seconds % 60;
-          return mins + 'm ' + secs + 's';
-        }
-        
-        function formatFileSize(bytes) {
-          const sizes = ['B', 'KB', 'MB', 'GB'];
-          if (bytes === 0) return '0 B';
-          const i = Math.floor(Math.log(bytes) / Math.log(1024));
-          return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-        }
-      </script>
+      <h2>🎬 Téléchargeur YouTube</h2>
+      <form action="/download" method="get">
+        <input type="text" name="url" placeholder="Collez le lien YouTube ici..." required/><br/>
+        <select name="format" required>
+          <option value="video">📹 Vidéo (MP4)</option>
+          <option value="audio">🎵 Audio (MP3)</option>
+        </select>
+        <select name="quality">
+          <option value="best">🏆 Meilleure qualité</option>
+          <option value="1080">📺 1080p</option>
+          <option value="720">📱 720p</option>
+          <option value="480">💻 480p</option>
+        </select><br/>
+        <button type="submit">⬇️ Télécharger</button>
+      </form>
     </body>
     </html>
   `);
 });
 
-// Route pour obtenir les infos vidéo
-app.get("/info", async (req, res) => {
-  const { url } = req.query;
-  
-  if (!url) {
-    return res.json({ error: 'URL manquante' });
-  }
-  
-  try {
-    const info = await getVideoInfo(url);
-    res.json(info);
-  } catch (error) {
-    console.error('Erreur info:', error.message);
-    res.json({ error: error.message });
-  }
-});
-
-// Route de téléchargement corrigée
+// Route de téléchargement
 app.get("/download", async (req, res) => {
   const { url, format, quality } = req.query;
   
+  // Validation
   if (!url) {
     return res.status(400).send("❌ URL manquante");
   }
+  
+  if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+    return res.status(400).send("❌ URL YouTube invalide");
+  }
 
-  console.log(`📥 Téléchargement: ${format} | ${quality} | ${url.substring(0, 50)}...`);
+  console.log(`📥 Demande: ${format} | ${quality} | ${url.substring(0, 50)}...`);
 
   try {
-    // Obtenir le titre pour le nom de fichier
-    const info = await getVideoInfo(url);
-    const safeTitle = info.title.replace(/[^\w\s-]/g, '').substring(0, 50) || 'download';
+    // Obtenir les infos de la vidéo d'abord
+    const infoArgs = ['--get-title', '--get-duration', url];
+    if (hasCookies) infoArgs.unshift('--cookies', cookiesPath);
     
-    let filename, contentType, args = [];
+    const infoProcess = spawn('yt-dlp', infoArgs);
+    let videoTitle = '';
     
-    // Configuration spécifique selon le format
+    infoProcess.stdout.on('data', (data) => {
+      videoTitle = data.toString().split('\n')[0].trim();
+    });
+
+    await new Promise((resolve) => {
+      infoProcess.on('close', resolve);
+    });
+
+    // Nom de fichier sécurisé
+    const safeTitle = videoTitle.replace(/[^\w\s-]/g, '').substring(0, 50) || 'video';
+    const extension = format === 'audio' ? 'mp3' : 'mp4';
+    const filename = `${safeTitle}_${Date.now()}.${extension}`;
+
+    // Headers de réponse
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', format === 'audio' ? 'audio/mpeg' : 'video/mp4');
+
+    // Construction des arguments yt-dlp
+    let args = ['-o', '-'];
+    
+    if (hasCookies) {
+      args.push('--cookies', cookiesPath);
+    }
+
     if (format === 'audio') {
-      filename = `${safeTitle}.mp3`;
-      contentType = 'audio/mpeg';
-      
-      // Arguments pour AUDIO SEULEMENT
-      args = [
+      // Pour l'audio: extraction + conversion MP3
+      args.push(
         '--extract-audio',
         '--audio-format', 'mp3',
-        '--audio-quality', '192K',
-        '--no-keep-video',  // Important: ne pas garder la vidéo
-        '--output', '-'
-      ];
+        '--audio-quality', '192K'
+      );
     } else {
-      filename = `${safeTitle}.mp4`;
-      contentType = 'video/mp4';
-      
-      // Arguments pour VIDÉO + AUDIO
+      // Pour la vidéo: format vidéo + audio
       let formatSelector;
-      switch(quality) {
-        case '1080': formatSelector = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]'; break;
-        case '720': formatSelector = 'bestvideo[height<=720]+bestaudio/best[height<=720]'; break;
-        case '480': formatSelector = 'bestvideo[height<=480]+bestaudio/best[height<=480]'; break;
-        default: formatSelector = 'bestvideo+bestaudio/best';
+      if (quality === 'best') {
+        formatSelector = 'bestvideo+bestaudio/best';
+      } else {
+        formatSelector = `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]`;
       }
       
-      args = [
+      args.push(
         '--format', formatSelector,
-        '--merge-output-format', 'mp4',
-        '--output', '-'
-      ];
+        '--merge-output-format', 'mp4'
+      );
     }
-    
-    // Ajout des cookies si disponibles
-    if (hasCookies) {
-      args.unshift('--cookies', cookiesPath);
-    }
-    
+
     args.push(url);
-    
+
     console.log(`🔧 Commande: yt-dlp ${args.join(' ')}`);
-    
-    // Headers de réponse CORRECTS
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Cache-Control', 'no-cache');
-    
-    // Lancement du processus
+
+    // Lancement du processus yt-dlp
     const ytProcess = spawn('yt-dlp', args, {
       stdio: ['ignore', 'pipe', 'pipe']
     });
-    
+
     let hasData = false;
-    let errorOutput = '';
-    
+
     ytProcess.stdout.on('data', (chunk) => {
       hasData = true;
       res.write(chunk);
     });
-    
+
     ytProcess.stderr.on('data', (data) => {
-      errorOutput += data.toString();
-      // Ne pas logger tous les messages de progression
-      if (data.toString().includes('ERROR')) {
-        console.error('❌ yt-dlp error:', data.toString());
+      const errorMsg = data.toString();
+      console.error('📛 yt-dlp stderr:', errorMsg);
+      
+      // Gestion des erreurs spécifiques
+      if (errorMsg.includes('Video unavailable')) {
+        if (!hasData) res.status(404).send('❌ Vidéo indisponible');
+      } else if (errorMsg.includes('Private video')) {
+        if (!hasData) res.status(403).send('❌ Vidéo privée');
       }
     });
-    
+
     ytProcess.on('close', (code) => {
-      if (code === 0 && hasData) {
+      if (code === 0) {
         console.log(`✅ Téléchargement réussi: ${filename}`);
       } else {
-        console.error(`❌ Échec (code ${code}):`, errorOutput);
+        console.error(`❌ Échec du téléchargement (code: ${code})`);
         if (!hasData) {
-          res.status(500).send(`❌ Erreur: ${errorOutput.split('\n')[0] || 'Téléchargement échoué'}`);
-          return;
+          res.status(500).send('❌ Erreur de téléchargement');
         }
       }
       res.end();
     });
-    
+
     ytProcess.on('error', (err) => {
       console.error('💥 Erreur processus:', err.message);
       if (!hasData) {
-        res.status(500).send('❌ Erreur serveur - yt-dlp non trouvé?');
-      } else {
-        res.end();
+        res.status(500).send('❌ Erreur serveur');
       }
+      res.end();
     });
-    
-    // Timeout de 15 minutes
+
+    // Timeout de sécurité (10 minutes)
     setTimeout(() => {
       if (!ytProcess.killed) {
-        ytProcess.kill('SIGKILL');
-        console.log('⏰ Timeout - processus forcé');
+        ytProcess.kill('SIGTERM');
+        console.log('⏰ Timeout - processus arrêté');
+        if (!hasData) {
+          res.status(408).send('❌ Timeout de téléchargement');
+        }
       }
-    }, 900000);
-    
+    }, 600000);
+
   } catch (error) {
     console.error('💀 Erreur globale:', error.message);
-    res.status(500).send('❌ ' + error.message);
+    res.status(500).send('❌ Erreur interne');
   }
 });
 
-// Démarrage serveur
+// Gestion des erreurs globales
+app.use((err, req, res, next) => {
+  console.error('🚨 Erreur Express:', err.message);
+  res.status(500).send('❌ Erreur serveur');
+});
+
+// Démarrage du serveur
 app.listen(PORT, () => {
-  console.log(`🚀 Serveur sur le port ${PORT}`);
-  console.log(`📂 Cookies: ${hasCookies ? '✅' : '❌'}`);
+  console.log(`🚀 Serveur YouTube Downloader démarré sur le port ${PORT}`);
+  console.log(`📂 Cookies: ${hasCookies ? '✅ Trouvés' : '❌ Absents'}`);
+});
+
+// Gestion propre de l'arrêt
+process.on('SIGINT', () => {
+  console.log('\n👋 Arrêt du serveur...');
+  process.exit(0);
 });
