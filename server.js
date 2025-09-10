@@ -140,30 +140,25 @@ app.get("/", (req, res) => {
           }
           
           document.getElementById('loading').style.display = 'block';
-          document.getElementById('info').style.display = 'none';
+          document.getElementById('hiddenUrl').value = url;
           
           try {
             const response = await fetch('/info?url=' + encodeURIComponent(url));
             const data = await response.json();
             
             if (data.error) {
-              alert('Erreur: ' + data.error);
-              return;
+              console.log('Info non disponible, mais téléchargement possible');
             }
             
             videoInfo = data;
-            document.getElementById('title').textContent = data.title;
-            document.getElementById('duration').textContent = '⏱️ Durée: ' + formatDuration(data.duration);
-            document.getElementById('hiddenUrl').value = url;
-            
             document.getElementById('loading').style.display = 'none';
-            document.getElementById('info').style.display = 'block';
-            
             updateSizeInfo();
             
           } catch (error) {
-            alert('Erreur lors de la récupération des infos');
+            console.log('Info non disponible, mais téléchargement possible');
             document.getElementById('loading').style.display = 'none';
+            videoInfo = { duration: 180, title: 'Vidéo YouTube' }; // Valeurs par défaut
+            updateSizeInfo();
           }
         }
         
