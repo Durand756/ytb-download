@@ -1,13 +1,13 @@
-FROM node:20
+FROM node:20-bullseye
 
-# Installer ffmpeg et yt-dlp
-RUN apt-get update && apt-get install -y ffmpeg python3-pip
-RUN pip3 install yt-dlp
+# Installer Python3, ffmpeg et yt-dlp
+RUN apt-get update && \
+    apt-get install -y python3-pip ffmpeg && \
+    pip install -U yt-dlp
 
-# Setup app
 WORKDIR /app
-COPY . .
-RUN npm install
+COPY . /app
+RUN npm install --omit=dev
 
 EXPOSE 3000
 CMD ["npm", "start"]
