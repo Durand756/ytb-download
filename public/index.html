@@ -819,6 +819,20 @@
                     setTimeout(debouncedCheckVideo, 100);
                 });
             }
+
+            // Event listener pour le formulaire de téléchargement
+            if (elements.downloadForm) {
+                elements.downloadForm.addEventListener('submit', handleDownloadSubmit);
+            }
+
+            // Event listeners pour les boutons de retry et cancel
+            if (elements.retryBtn) {
+                elements.retryBtn.addEventListener('click', retryNow);
+            }
+
+            if (elements.cancelBtn) {
+                elements.cancelBtn.addEventListener('click', cancelDownload);
+            }
             
             if (elements.generateBtn) {
                 elements.generateBtn.addEventListener('click', generateDirectLink);
