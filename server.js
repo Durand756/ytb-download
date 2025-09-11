@@ -73,13 +73,13 @@ async function getVideoInfo(url) {
       }
     });
     
-    // Timeout de sécurité pour les requêtes d'info (30 secondes)
+    // Timeout de sécurité pour les requêtes d'info (5 minutes)
     setTimeout(() => {
       if (!infoProcess.killed) {
         infoProcess.kill('SIGTERM');
         reject(new Error('Timeout lors de la récupération des informations'));
       }
-    }, 30000);
+    }, 300000);
   });
 }
 
