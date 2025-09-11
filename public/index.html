@@ -15,7 +15,7 @@
         }
         
         .container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
             background: white;
             padding: 30px;
@@ -46,6 +46,23 @@
             margin-top: 0;
             font-size: 1.4rem;
             border-bottom: 2px solid #e3f2fd;
+            padding-bottom: 10px;
+        }
+        
+        .api-section {
+            margin-bottom: 30px;
+            padding: 25px;
+            border: 2px solid #e8f5e8;
+            border-radius: 12px;
+            background: linear-gradient(145deg, #f1f8e9, #ffffff);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        
+        .api-section h3 {
+            color: #2e7d32;
+            margin-top: 0;
+            font-size: 1.4rem;
+            border-bottom: 2px solid #e8f5e8;
             padding-bottom: 10px;
         }
         
@@ -95,6 +112,14 @@
             transform: translateY(0);
         }
         
+        .success-btn {
+            background: linear-gradient(135deg, #4caf50, #388e3c);
+        }
+        
+        .success-btn:hover {
+            background: linear-gradient(135deg, #388e3c, #2e7d32);
+        }
+        
         .info-section {
             margin-top: 20px;
             padding: 20px;
@@ -130,6 +155,7 @@
             font-family: 'Courier New', monospace;
             font-size: 13px;
             border: 1px solid rgba(0,0,0,0.1);
+            word-break: break-all;
         }
         
         .quick-generator {
@@ -247,6 +273,47 @@
             color: #2e7d32;
             display: none;
         }
+
+        .api-endpoint {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .api-method {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 12px;
+        }
+
+        .api-method.get {
+            background: #007bff;
+        }
+
+        .api-test-section {
+            background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+            border: 2px solid #2196f3;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .url-builder {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
@@ -320,6 +387,91 @@
                 </div>
             </div>
         </div>
+
+        <!-- API Section -->
+        <div class="api-section">
+            <h3>🔧 API Endpoints Complets</h3>
+            
+            <div class="api-endpoint">
+                <span class="api-method get">GET</span>
+                <strong>/info</strong> - Récupérer les informations d'une vidéo
+                <br>
+                <small>Paramètres: url (URL YouTube complète)</small>
+            </div>
+
+            <div class="api-endpoint">
+                <span class="api-method get">GET</span>
+                <strong>/info/:videoId</strong> - Récupérer les informations par ID
+                <br>
+                <small>Paramètres: videoId (ID de la vidéo YouTube)</small>
+            </div>
+
+            <div class="api-endpoint">
+                <span class="api-method get">GET</span>
+                <strong>/download</strong> - Téléchargement avec URL complète
+                <br>
+                <small>Paramètres: url, format?, quality?</small>
+            </div>
+
+            <div class="api-endpoint">
+                <span class="api-method get">GET</span>
+                <strong>/download/:videoId</strong> - Téléchargement direct par ID
+                <br>
+                <small>Paramètres: format?, quality?</small>
+            </div>
+
+            <div class="api-endpoint">
+                <span class="api-method get">GET</span>
+                <strong>/api/download-url</strong> - Téléchargement direct avec URL
+                <br>
+                <small>Paramètres: url (URL YouTube), format?, quality?</small>
+            </div>
+
+            <div class="api-test-section">
+                <h4>🧪 Testeur d'API</h4>
+                <div class="url-builder">
+                    <div class="form-row">
+                        <select id="apiEndpoint">
+                            <option value="/info">Info avec URL</option>
+                            <option value="/info-id">Info avec ID</option>
+                            <option value="/api/download-url">Download avec URL</option>
+                            <option value="/download-id">Download avec ID</option>
+                        </select>
+                        <input type="text" id="apiUrl" placeholder="URL YouTube ou ID vidéo" />
+                        <select id="apiFormat">
+                            <option value="">Format (optionnel)</option>
+                            <option value="video">video</option>
+                            <option value="audio">audio</option>
+                        </select>
+                        <select id="apiQuality">
+                            <option value="">Qualité (optionnel)</option>
+                            <option value="best">best</option>
+                            <option value="1080">1080</option>
+                            <option value="720">720</option>
+                            <option value="480">480</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <input type="text" id="builtApiUrl" readonly placeholder="URL de l'API générée..." />
+                        <button type="button" id="testApiBtn">🧪 Tester</button>
+                        <button type="button" id="copyApiBtn">📋 Copier</button>
+                        <a id="openApiUrl" href="#" style="display: none;" target="_blank">
+                            <button type="button" class="success-btn">🔗 Ouvrir</button>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="examples">
+                <h4>Exemples d'utilisation de l'API:</h4>
+                <div class="example-links">
+                    <p><strong>Récupérer les infos:</strong> <code>/info?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ</code></p>
+                    <p><strong>Récupérer les infos par ID:</strong> <code>/info/dQw4w9WgXcQ</code></p>
+                    <p><strong>Téléchargement direct avec URL:</strong> <code>/api/download-url?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ&format=audio</code></p>
+                    <p><strong>Téléchargement avec ID:</strong> <code>/download/dQw4w9WgXcQ?format=video&quality=720</code></p>
+                </div>
+            </div>
+        </div>
         
         <div id="loadingIndicator" class="loading">🔍 Récupération des informations de la vidéo...</div>
         
@@ -332,6 +484,7 @@
         
         <div class="footer">
             <p>Created by <strong>Cameroon Djoukam Aime</strong></p>
+            <p><a href="/api-docs" target="_blank">📖 Documentation API complète</a></p>
         </div>
     </div>
     
@@ -352,7 +505,16 @@
             errorMessage: null,
             successMessage: null,
             directFormat: null,
-            directQuality: null
+            directQuality: null,
+            // API elements
+            apiEndpoint: null,
+            apiUrl: null,
+            apiFormat: null,
+            apiQuality: null,
+            builtApiUrl: null,
+            testApiBtn: null,
+            copyApiBtn: null,
+            openApiUrl: null
         };
 
         // Initialisation des éléments DOM
@@ -372,6 +534,15 @@
             elements.successMessage = document.getElementById('successMessage');
             elements.directFormat = document.getElementById('directFormat');
             elements.directQuality = document.getElementById('directQuality');
+            // API elements
+            elements.apiEndpoint = document.getElementById('apiEndpoint');
+            elements.apiUrl = document.getElementById('apiUrl');
+            elements.apiFormat = document.getElementById('apiFormat');
+            elements.apiQuality = document.getElementById('apiQuality');
+            elements.builtApiUrl = document.getElementById('builtApiUrl');
+            elements.testApiBtn = document.getElementById('testApiBtn');
+            elements.copyApiBtn = document.getElementById('copyApiBtn');
+            elements.openApiUrl = document.getElementById('openApiUrl');
         }
 
         // Fonction pour afficher les messages
@@ -386,12 +557,10 @@
             if (type === 'error') {
                 errorEl.textContent = message;
                 errorEl.style.display = 'block';
-                // Scroll vers le message
                 errorEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } else if (type === 'success') {
                 successEl.textContent = message;
                 successEl.style.display = 'block';
-                // Scroll vers le message
                 successEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
             
@@ -481,38 +650,138 @@
             
             showMessage('success', 'Lien direct généré avec succès!');
         }
+
+        // Fonction pour construire l'URL de l'API
+        function buildApiUrl() {
+            const endpoint = elements.apiEndpoint.value;
+            const url = elements.apiUrl.value.trim();
+            const format = elements.apiFormat.value;
+            const quality = elements.apiQuality.value;
+            
+            if (!url) {
+                elements.builtApiUrl.value = '';
+                elements.openApiUrl.style.display = 'none';
+                return;
+            }
+            
+            const baseUrl = window.location.origin;
+            let apiUrl = '';
+            const params = new URLSearchParams();
+            
+            if (format) params.append('format', format);
+            if (quality) params.append('quality', quality);
+            
+            switch (endpoint) {
+                case '/info':
+                    apiUrl = `${baseUrl}/info?url=${encodeURIComponent(url)}`;
+                    if (params.toString()) {
+                        apiUrl += '&' + params.toString();
+                    }
+                    break;
+                case '/info-id':
+                    const infoId = extractVideoId(url);
+                    apiUrl = `${baseUrl}/info/${infoId}`;
+                    if (params.toString()) {
+                        apiUrl += '?' + params.toString();
+                    }
+                    break;
+                case '/api/download-url':
+                    params.append('url', url);
+                    apiUrl = `${baseUrl}/api/download-url?${params.toString()}`;
+                    break;
+                case '/download-id':
+                    const downloadId = extractVideoId(url);
+                    apiUrl = `${baseUrl}/download/${downloadId}`;
+                    if (params.toString()) {
+                        apiUrl += '?' + params.toString();
+                    }
+                    break;
+            }
+            
+            elements.builtApiUrl.value = apiUrl;
+            elements.openApiUrl.href = apiUrl;
+            elements.openApiUrl.style.display = 'inline-block';
+        }
+
+        // Fonction pour tester l'API
+        async function testApi() {
+            const apiUrl = elements.builtApiUrl.value;
+            
+            if (!apiUrl) {
+                showMessage('error', 'Veuillez construire une URL d\'API d\'abord');
+                return;
+            }
+            
+            elements.loadingIndicator.classList.add('show');
+            
+            try {
+                const response = await fetch(apiUrl);
+                
+                if (apiUrl.includes('/info')) {
+                    // Pour les endpoints d'info, afficher la réponse JSON
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showMessage('success', `API testée avec succès! Titre: "${data.title}"`);
+                        
+                        // Afficher les infos dans la section dédiée
+                        elements.videoTitle.textContent = data.title;
+                        elements.videoDuration.textContent = data.duration;
+                        elements.videoFormats.innerHTML = data.formats.map(f => 
+                            `<div class="format-info"><strong>${f.type}:</strong> ${f.quality} - ${f.size}</div>`
+                        ).join('');
+                        elements.videoInfo.style.display = 'block';
+                    } else {
+                        showMessage('error', 'Erreur API: ' + (data.error || 'Erreur inconnue'));
+                    }
+                } else {
+                    // Pour les endpoints de téléchargement
+                    if (response.ok) {
+                        showMessage('success', 'API de téléchargement accessible! Cliquez sur "Ouvrir" pour télécharger.');
+                    } else {
+                        const errorText = await response.text();
+                        showMessage('error', 'Erreur API: ' + errorText);
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur test API:', error);
+                showMessage('error', 'Erreur de test API: ' + error.message);
+            } finally {
+                elements.loadingIndicator.classList.remove('show');
+            }
+        }
         
         // Fonction pour copier le lien dans le presse-papiers
-        async function copyToClipboard() {
-            const link = elements.generatedLink.value;
+        async function copyToClipboard(inputElement, buttonElement, message) {
+            const text = inputElement.value;
             
-            if (!link) {
-                showMessage('error', 'Aucun lien à copier. Générez d\'abord un lien.');
+            if (!text) {
+                showMessage('error', 'Aucun contenu à copier');
                 return;
             }
             
             try {
-                await navigator.clipboard.writeText(link);
+                await navigator.clipboard.writeText(text);
                 
                 // Animation de succès sur le bouton
-                const originalText = elements.copyBtn.innerHTML;
-                elements.copyBtn.classList.add('copy-success');
-                elements.copyBtn.innerHTML = '✅ Copié!';
+                const originalText = buttonElement.innerHTML;
+                buttonElement.classList.add('copy-success');
+                buttonElement.innerHTML = '✅ Copié!';
                 
-                showMessage('success', 'Lien copié dans le presse-papiers!');
+                showMessage('success', message || 'Contenu copié dans le presse-papiers!');
                 
                 // Remettre le bouton normal après 2 secondes
                 setTimeout(() => {
-                    elements.copyBtn.classList.remove('copy-success');
-                    elements.copyBtn.innerHTML = originalText;
+                    buttonElement.classList.remove('copy-success');
+                    buttonElement.innerHTML = originalText;
                 }, 2000);
                 
             } catch (err) {
                 console.error('Erreur copie:', err);
                 // Fallback pour les navigateurs qui ne supportent pas l'API Clipboard
-                elements.generatedLink.select();
+                inputElement.select();
                 document.execCommand('copy');
-                showMessage('success', 'Lien copié dans le presse-papiers!');
+                showMessage('success', message || 'Contenu copié dans le presse-papiers!');
             }
         }
         
@@ -529,8 +798,9 @@
             };
         }
         
-        // Version debounced de checkVideo
+        // Version debounced des fonctions
         const debouncedCheckVideo = debounce(checkVideo, 1000);
+        const debouncedBuildApiUrl = debounce(buildApiUrl, 500);
         
         // Initialisation au chargement de la page
         document.addEventListener('DOMContentLoaded', function() {
@@ -542,11 +812,10 @@
                 console.warn('Éléments DOM manquants:', missingElements.map(([key]) => key));
             }
             
-            // Event listeners
+            // Event listeners pour la section principale
             if (elements.videoUrl) {
                 elements.videoUrl.addEventListener('input', debouncedCheckVideo);
                 elements.videoUrl.addEventListener('paste', function() {
-                    // Petite attente pour que la valeur soit mise à jour après le paste
                     setTimeout(debouncedCheckVideo, 100);
                 });
             }
@@ -556,7 +825,9 @@
             }
             
             if (elements.copyBtn) {
-                elements.copyBtn.addEventListener('click', copyToClipboard);
+                elements.copyBtn.addEventListener('click', () => {
+                    copyToClipboard(elements.generatedLink, elements.copyBtn, 'Lien de téléchargement copié!');
+                });
             }
             
             // Event listener pour le champ videoId
@@ -568,7 +839,7 @@
                 });
             }
             
-            // Event listener pour les changements de format/qualité
+            // Event listeners pour les changements de format/qualité
             if (elements.directFormat) {
                 elements.directFormat.addEventListener('change', function() {
                     if (elements.videoId.value.trim()) {
@@ -585,7 +856,37 @@
                 });
             }
             
-            console.log('✅ Interface YouTube Downloader initialisée');
+            // Event listeners pour la section API
+            if (elements.apiEndpoint) {
+                elements.apiEndpoint.addEventListener('change', debouncedBuildApiUrl);
+            }
+            
+            if (elements.apiUrl) {
+                elements.apiUrl.addEventListener('input', debouncedBuildApiUrl);
+                elements.apiUrl.addEventListener('paste', function() {
+                    setTimeout(debouncedBuildApiUrl, 100);
+                });
+            }
+            
+            if (elements.apiFormat) {
+                elements.apiFormat.addEventListener('change', debouncedBuildApiUrl);
+            }
+            
+            if (elements.apiQuality) {
+                elements.apiQuality.addEventListener('change', debouncedBuildApiUrl);
+            }
+            
+            if (elements.testApiBtn) {
+                elements.testApiBtn.addEventListener('click', testApi);
+            }
+            
+            if (elements.copyApiBtn) {
+                elements.copyApiBtn.addEventListener('click', () => {
+                    copyToClipboard(elements.builtApiUrl, elements.copyApiBtn, 'URL de l\'API copiée!');
+                });
+            }
+            
+            console.log('✅ Interface YouTube Downloader avec API complète initialisée');
         });
         
         // Gestion des erreurs globales
