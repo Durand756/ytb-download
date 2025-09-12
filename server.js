@@ -1246,58 +1246,93 @@ app.use((err, req, res, next) => {
   }
 });
 
-// Gestion des erreurs non capturées
+// Gestion des erreurs non capturées avec comportement adapté
 process.on('uncaughtException', (error) => {
-  console.error(`💥 Erreur non capturée Worker ${process.pid}:`, error);
-  // Redémarrage gracieux
-  setTimeout(() => process.exit(1), 1000);
+  console.error(`💥 Erreur non capturée ${processManager.useCluster ? 'Worker' : 'Process'} ${process.pid}:`, error);
+  
+  // En production, éviter les redémarrages agressifs
+  if (process.env.NODE_ENV === 'production') {
+    console.error('⚠️ Mode production - processus continue malgré l\'erreur');
+  } else {
+    // Redémarrage gracieux seulement en développement
+    setTimeout(() => process.exit(1), 1000);
+  }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error(`💥 Promise rejetée Worker ${process.pid}:`, reason);
+  console.error(`💥 Promise rejetée ${processManager.useCluster ? 'Worker' : 'Process'} ${process.pid}:`, reason);
+  
+  // En production, log seulement sans crash
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('Stack:', reason?.stack);
+  }
 });
 
-// Démarrage du serveur
-app.listen(PORT, () => {
-  console.log(`🚀 Worker ${process.pid} démarré sur le port ${PORT}`);
+// Démarrage du serveur avec gestion d'erreurs
+const server = app.listen(PORT, '0.0.0.0', (error) => {
+  if (error) {
+    console.error('❌ Erreur démarrage serveur:', error);
+    process.exit(1);
+  }
+  
+  const mode = processManager.useCluster ? 'Worker' : 'Process';
+  console.log(`🚀 ${mode} ${process.pid} démarré sur le port ${PORT}`);
   console.log(`📂 Cookies: ${hasCookies ? '✅ Trouvés' : '❌ Absents'}`);
-  console.log(`🌐 Interface disponible sur: http://localhost:${PORT}`);
-  console.log(`📖 Documentation API: http://localhost:${PORT}/api-docs`);
-  console.log(`❤️ Health check: http://localhost:${PORT}/api/health`);
-  console.log(`📊 Queue status: http://localhost:${PORT}/api/queue-status`);
-  console.log(`⚙️ Configuration:
+  console.log(`🌐 Interface disponible sur: http://0.0.0.0:${PORT}`);
+  console.log(`📖 Documentation API: http://0.0.0.0:${PORT}/api-docs`);
+  console.log(`❤️ Health check: http://0.0.0.0:${PORT}/api/health`);
+  console.log(`📊 Queue status: http://0.0.0.0:${PORT}/api/queue-status`);
+  console.log(`⚙️ Configuration (${process.env.NODE_ENV || 'development'}):
     • Max downloads simultanés: ${CONFIG.MAX_CONCURRENT_DOWNLOADS}
     • Max info requests simultanées: ${CONFIG.MAX_CONCURRENT_INFO_REQUESTS}  
     • Taille max queue: ${CONFIG.MAX_QUEUE_SIZE}
     • Rate limit: ${CONFIG.RATE_LIMIT_MAX_REQUESTS} req/min
     • Timeout téléchargement: ${CONFIG.REQUEST_TIMEOUT / 1000}s
     • Cache activé: ✅
-    • Clustering: ✅`);
+    • Clustering: ${processManager.useCluster ? '✅' : '❌ (Cloud Mode)'}`);
+});
+
+// Gestion des erreurs du serveur
+server.on('error', (error) => {
+  console.error('❌ Erreur serveur:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} déjà utilisé`);
+    process.exit(1);
+  }
 });
 
 // Gestion propre de l'arrêt avec nettoyage des ressources
 process.on('SIGINT', () => {
-  console.log(`\n👋 Arrêt Worker ${process.pid}...`);
+  console.log(`\n👋 Arrêt ${processManager.useCluster ? 'Worker' : 'Process'} ${process.pid}...`);
   gracefulShutdown();
 });
 
 process.on('SIGTERM', () => {
-  console.log(`\n👋 Arrêt Worker ${process.pid} (SIGTERM)...`);
+  console.log(`\n👋 Arrêt ${processManager.useCluster ? 'Worker' : 'Process'} ${process.pid} (SIGTERM)...`);
   gracefulShutdown();
 });
 
 function gracefulShutdown() {
-  // Arrêter d'accepter de nouvelles connexions
   console.log('🛑 Arrêt des nouvelles connexions...');
   
-  // Attendre que les requêtes en cours se terminent
-  const activeRequests = queueManager.getStats().activeDownloads + queueManager.getStats().activeInfoRequests;
-  if (activeRequests > 0) {
-    console.log(`⏳ Attente de ${activeRequests} requêtes actives...`);
-    setTimeout(() => {
+  // Fermer le serveur proprement
+  server.close((err) => {
+    if (err) {
+      console.error('❌ Erreur fermeture serveur:', err);
+    } else {
+      console.log('✅ Serveur fermé proprement');
+    }
+    
+    // Attendre que les requêtes en cours se terminent
+    const activeRequests = queueManager.getStats().activeDownloads + queueManager.getStats().activeInfoRequests;
+    if (activeRequests > 0) {
+      console.log(`⏳ Attente de ${activeRequests} requêtes actives...`);
+      setTimeout(() => {
+        console.log('⏰ Timeout atteint, arrêt forcé');
+        process.exit(0);
+      }, 10000); // Max 10 secondes d'attente en cloud
+    } else {
       process.exit(0);
-    }, 5000); // Max 5 secondes d'attente
-  } else {
-    process.exit(0);
-  }
+    }
+  });
 }
