@@ -18,7 +18,7 @@ const MAX_CONCURRENT_DOWNLOADS = 3;
 const MAX_CONCURRENT_INFO_REQUESTS = 8;
 const MEMORY_THRESHOLD_MB = 400; // Limite mémoire avant refus
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
-const INFO_TIMEOUT_MS = 30 * 1000; // 30 secondes pour les infos
+const INFO_TIMEOUT_MS = 30 * 10000; // 300 secondes pour les infos
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 // Compteurs de requêtes actives
