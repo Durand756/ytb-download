@@ -14,8 +14,8 @@ const hasCookies = fs.existsSync(cookiesPath);
 // ===============================
 
 // Limites pour serveur gratuit Render
-const MAX_CONCURRENT_DOWNLOADS = 3;
-const MAX_CONCURRENT_INFO_REQUESTS = 8;
+const MAX_CONCURRENT_DOWNLOADS = 6;
+const MAX_CONCURRENT_INFO_REQUESTS = 10;
 const MEMORY_THRESHOLD_MB = 400; // Limite mémoire avant refus
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const INFO_TIMEOUT_MS = 30 * 10000; // 300 secondes pour les infos
