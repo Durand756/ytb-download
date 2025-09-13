@@ -17,7 +17,7 @@ const MAX_CONCURRENT_DOWNLOADS = 2;  // Réduit pour économiser la mémoire
 const MAX_CONCURRENT_INFO_REQUESTS = 5; // Maintenu car moins coûteux
 const MEMORY_THRESHOLD_MB = 400;
 const REQUEST_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes au lieu de 10
-const INFO_TIMEOUT_MS = 15 * 1000; // 15 secondes au lieu de 300
+const INFO_TIMEOUT_MS = 300 * 1000; // 15 secondes au lieu de 300
 const CLEANUP_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes au lieu de 1 heure
 
