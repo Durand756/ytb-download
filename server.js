@@ -2,7 +2,6 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
-const { promisify } = require('util');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,83 +9,75 @@ const cookiesPath = path.join(__dirname, "cookies.txt");
 const hasCookies = fs.existsSync(cookiesPath);
 
 // ===============================
-// CONFIGURATION & OPTIMISATIONS
+// CONFIGURATION OPTIMISÉE KOYEB
 // ===============================
 
-// Limites pour serveur gratuit Render
-const MAX_CONCURRENT_DOWNLOADS = 6;
-const MAX_CONCURRENT_INFO_REQUESTS = 10;
-const MEMORY_THRESHOLD_MB = 400; // Limite mémoire avant refus
-const REQUEST_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
-const INFO_TIMEOUT_MS = 30 * 10000; // 300 secondes pour les infos
-const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+// Limites adaptées à Koyeb (512MB RAM, 0.1 vCPU)
+const MAX_CONCURRENT_DOWNLOADS = 2;  // Réduit pour économiser la mémoire
+const MAX_CONCURRENT_INFO_REQUESTS = 5; // Maintenu car moins coûteux
+const MEMORY_THRESHOLD_MB = 400;
+const REQUEST_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes au lieu de 10
+const INFO_TIMEOUT_MS = 15 * 1000; // 15 secondes au lieu de 300
+const CLEANUP_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes au lieu de 1 heure
 
-// Compteurs de requêtes actives
+// Compteurs globaux
 let activeDownloads = 0;
 let activeInfoRequests = 0;
 let totalRequests = 0;
 let errorCount = 0;
 let lastCleanup = Date.now();
 
-// Cache pour les informations de vidéo (TTL: 1 heure)
+// Cache optimisé avec limite de taille
+const MAX_CACHE_SIZE = 100; // Maximum 100 entrées en cache
 const videoInfoCache = new Map();
-const CACHE_TTL_MS = 60 * 60 * 1000;
 
-// Queue pour les requêtes en attente
+// Queues simplifiées
 const downloadQueue = [];
 const infoQueue = [];
 
-// Middleware essentiels
+// Middleware ultra-légers
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '100kb' })); // Réduit de 1mb à 100kb
 
-// Middleware de monitoring de la mémoire
+// Middleware de monitoring mémoire optimisé
 app.use((req, res, next) => {
-  const memUsage = process.memoryUsage();
-  const memUsageMB = Math.round(memUsage.rss / 1024 / 1024);
+  totalRequests++;
   
-  if (memUsageMB > MEMORY_THRESHOLD_MB) {
-    console.warn(`⚠️ Mémoire élevée: ${memUsageMB}MB - Refus de la requête`);
-    return res.status(503).json({ 
-      error: 'Serveur surchargé', 
-      retry_after: 60,
-      memory_usage: `${memUsageMB}MB`
-    });
+  // Vérification mémoire seulement toutes les 10 requêtes pour économiser les ressources
+  if (totalRequests % 10 === 0) {
+    const memUsageMB = Math.round(process.memoryUsage().rss / 1024 / 1024);
+    if (memUsageMB > MEMORY_THRESHOLD_MB) {
+      console.warn(`⚠️ Mémoire critique: ${memUsageMB}MB`);
+      // Nettoyage d'urgence
+      performEmergencyCleanup();
+      return res.status(503).json({ 
+        error: 'Serveur surchargé - Réessayez dans 30s', 
+        retry_after: 30
+      });
+    }
   }
   
-  totalRequests++;
-  next();
-});
-
-// Middleware de limitation de débit
-app.use((req, res, next) => {
-  const clientIP = req.ip || req.connection.remoteAddress;
-  const userAgent = req.get('User-Agent') || 'unknown';
-  
-  // Headers de réponse pour monitoring
+  // Headers simplifiés
   res.setHeader('X-Server-Load', `${activeDownloads}/${MAX_CONCURRENT_DOWNLOADS}`);
-  res.setHeader('X-Memory-Usage', `${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB`);
-  
-  console.log(`📊 Requête: ${req.method} ${req.path} | IP: ${clientIP.substring(0, 20)} | UA: ${userAgent.substring(0, 30)}`);
   next();
 });
 
 if (!hasCookies) {
-  console.warn("⚠️ Aucun fichier cookies.txt trouvé - Certaines vidéos peuvent être inaccessibles");
+  console.warn("⚠️ Cookies non disponibles - Vidéos privées inaccessibles");
 }
 
 // ===============================
-// UTILITAIRES & HELPERS
+// UTILITAIRES OPTIMISÉS
 // ===============================
 
 function extractVideoId(url) {
-  const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|m\.youtube\.com\/watch\?v=)([^&\n?#]+)/;
-  const match = url.match(regex);
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
   return match ? match[1] : null;
 }
 
 function isValidYouTubeUrl(url) {
-  return url && (url.includes('youtube.com') || url.includes('youtu.be')) && extractVideoId(url);
+  return url && extractVideoId(url) !== null;
 }
 
 function buildYouTubeUrl(videoId) {
@@ -94,45 +85,62 @@ function buildYouTubeUrl(videoId) {
 }
 
 function formatFileSize(bytes) {
-  if (!bytes) return 'Taille inconnue';
-  const sizes = ['o', 'Ko', 'Mo', 'Go'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+  if (!bytes) return 'N/A';
+  const mb = Math.round(bytes / 1024 / 1024);
+  return mb > 0 ? `${mb} MB` : `${Math.round(bytes / 1024)} KB`;
 }
 
 function sanitizeFilename(title) {
   return (title || 'video')
     .replace(/[^\w\s.-]/g, '')
     .replace(/\s+/g, '_')
-    .substring(0, 50)
+    .substring(0, 40) // Réduit à 40 caractères
     .trim();
 }
 
-// Nettoyage périodique des ressources
+// Nettoyage optimisé pour serveur limité
 function performCleanup() {
   const now = Date.now();
+  let cleaned = 0;
   
   // Nettoyer le cache expiré
   for (const [key, value] of videoInfoCache.entries()) {
     if (now - value.timestamp > CACHE_TTL_MS) {
       videoInfoCache.delete(key);
+      cleaned++;
     }
   }
   
-  // Forcer garbage collection si disponible
-  if (global.gc) {
-    global.gc();
+  // Si le cache est trop grand, supprimer les plus anciens
+  if (videoInfoCache.size > MAX_CACHE_SIZE) {
+    const entries = Array.from(videoInfoCache.entries())
+      .sort((a, b) => a[1].timestamp - b[1].timestamp);
+    
+    const toDelete = videoInfoCache.size - MAX_CACHE_SIZE;
+    for (let i = 0; i < toDelete; i++) {
+      videoInfoCache.delete(entries[i][0]);
+      cleaned++;
+    }
   }
   
-  console.log(`🧹 Nettoyage effectué - Cache: ${videoInfoCache.size} entrées`);
+  if (global.gc) global.gc();
+  
+  console.log(`🧹 Nettoyage: ${cleaned} entrées supprimées, cache: ${videoInfoCache.size}`);
   lastCleanup = now;
+}
+
+function performEmergencyCleanup() {
+  // Vider complètement le cache en cas d'urgence
+  videoInfoCache.clear();
+  if (global.gc) global.gc();
+  console.log('🚨 Nettoyage d\'urgence effectué');
 }
 
 // Nettoyage automatique
 setInterval(performCleanup, CLEANUP_INTERVAL_MS);
 
 // ===============================
-// GESTION DES QUEUES
+// GESTION DES QUEUES OPTIMISÉE
 // ===============================
 
 function processDownloadQueue() {
@@ -143,11 +151,12 @@ function processDownloadQueue() {
   const task = downloadQueue.shift();
   activeDownloads++;
   
-  console.log(`📥 Traitement téléchargement (${activeDownloads}/${MAX_CONCURRENT_DOWNLOADS}) - Queue: ${downloadQueue.length}`);
+  console.log(`📥 Traitement téléchargement (${activeDownloads}/${MAX_CONCURRENT_DOWNLOADS})`);
   
   task.execute().finally(() => {
     activeDownloads--;
-    setTimeout(processDownloadQueue, 100); // Petit délai pour éviter la surcharge
+    // Traitement immédiat de la queue suivante
+    setImmediate(processDownloadQueue);
   });
 }
 
@@ -159,82 +168,103 @@ function processInfoQueue() {
   const task = infoQueue.shift();
   activeInfoRequests++;
   
-  console.log(`📋 Traitement info (${activeInfoRequests}/${MAX_CONCURRENT_INFO_REQUESTS}) - Queue: ${infoQueue.length}`);
+  console.log(`📋 Traitement info (${activeInfoRequests}/${MAX_CONCURRENT_INFO_REQUESTS})`);
   
   task.execute().finally(() => {
     activeInfoRequests--;
-    setTimeout(processInfoQueue, 50);
+    setImmediate(processInfoQueue);
   });
 }
 
 // ===============================
-// FONCTIONS PRINCIPALES
+// FONCTIONS PRINCIPALES OPTIMISÉES
 // ===============================
 
 async function getVideoInfoCached(url) {
   const videoId = extractVideoId(url);
   if (!videoId) throw new Error('ID vidéo invalide');
   
-  // Vérifier le cache
-  const cacheKey = videoId;
-  const cached = videoInfoCache.get(cacheKey);
+  // Vérification cache en premier
+  const cached = videoInfoCache.get(videoId);
   if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
-    console.log(`💾 Cache hit pour: ${videoId}`);
+    console.log(`💾 Cache hit: ${videoId}`);
     return cached.data;
   }
   
   return new Promise((resolve, reject) => {
+    let resolved = false;
     const timeoutId = setTimeout(() => {
-      reject(new Error('Timeout lors de la récupération des informations'));
+      if (!resolved) {
+        resolved = true;
+        reject(new Error('Timeout lors de la récupération'));
+      }
     }, INFO_TIMEOUT_MS);
     
-    const infoArgs = ['--dump-json', '--no-playlist', url];
+    // Arguments optimisés pour serveur limité
+    const args = [
+      '--dump-json', 
+      '--no-playlist',
+      '--no-warnings',
+      '--quiet',
+      url
+    ];
     
     if (hasCookies) {
-      infoArgs.unshift('--cookies', cookiesPath);
+      args.splice(-1, 0, '--cookies', cookiesPath);
     }
     
-    const infoProcess = spawn('yt-dlp', infoArgs, {
+    console.log(`🔍 Récupération info: ${videoId}`);
+    const process = spawn('yt-dlp', args, {
       stdio: ['ignore', 'pipe', 'pipe']
     });
     
     let jsonData = '';
     let errorData = '';
     
-    infoProcess.stdout.on('data', (data) => {
+    process.stdout.on('data', (data) => {
       jsonData += data.toString();
     });
     
-    infoProcess.stderr.on('data', (data) => {
+    process.stderr.on('data', (data) => {
       errorData += data.toString();
     });
     
-    infoProcess.on('close', (code) => {
+    process.on('close', (code) => {
+      if (resolved) return;
+      resolved = true;
       clearTimeout(timeoutId);
       
       if (code === 0 && jsonData.trim()) {
         try {
           const videoInfo = JSON.parse(jsonData);
           
-          // Mettre en cache
-          videoInfoCache.set(cacheKey, {
+          // Mise en cache réussie
+          videoInfoCache.set(videoId, {
             data: videoInfo,
             timestamp: Date.now()
           });
           
+          console.log(`✅ Info récupérée et mise en cache: ${videoId}`);
           resolve(videoInfo);
         } catch (e) {
-          reject(new Error('Erreur parsing JSON: ' + e.message));
+          console.error(`❌ Erreur parsing JSON: ${e.message}`);
+          reject(new Error('Données corrompues'));
         }
       } else {
-        const errorMsg = errorData || `Code de sortie: ${code}`;
-        reject(new Error('Erreur obtention infos: ' + errorMsg));
+        const error = errorData.includes('unavailable') ? 'Vidéo indisponible' :
+                     errorData.includes('private') ? 'Vidéo privée' :
+                     `Erreur récupération (code: ${code})`;
+        console.error(`❌ ${error} - ${videoId}`);
+        reject(new Error(error));
       }
     });
     
-    infoProcess.on('error', (err) => {
+    process.on('error', (err) => {
+      if (resolved) return;
+      resolved = true;
       clearTimeout(timeoutId);
-      reject(new Error('Erreur processus yt-dlp: ' + err.message));
+      console.error(`💥 Erreur processus: ${err.message}`);
+      reject(new Error('Service temporairement indisponible'));
     });
   });
 }
@@ -242,176 +272,135 @@ async function getVideoInfoCached(url) {
 function formatVideoInfo(videoInfo) {
   const formats = [];
   
-  // Format audio MP3
+  // Audio simplifié
   const audioFormats = videoInfo.formats?.filter(f => f.acodec && f.acodec !== 'none') || [];
   if (audioFormats.length > 0) {
     const bestAudio = audioFormats.reduce((best, current) => 
       (current.abr || 0) > (best.abr || 0) ? current : best
     );
     formats.push({
-      type: 'Audio MP3',
-      quality: `${bestAudio.abr || 128} kbps`,
-      size: formatFileSize(bestAudio.filesize || bestAudio.filesize_approx)
+      type: 'MP3 Audio',
+      quality: `${bestAudio.abr || 128}kbps`,
+      size: formatFileSize(bestAudio.filesize)
     });
   }
   
-  // Formats vidéo
-  const videoFormats = videoInfo.formats?.filter(f => f.vcodec && f.vcodec !== 'none') || [];
-  const qualityLevels = [1080, 720, 480];
+  // Vidéo optimisée - seulement les qualités essentielles
+  const videoFormats = videoInfo.formats?.filter(f => f.vcodec && f.vcodec !== 'none' && f.height) || [];
   
-  qualityLevels.forEach(quality => {
-    const format = videoFormats.find(f => f.height === quality);
-    if (format) {
-      formats.push({
-        type: `Vidéo MP4 ${quality}p`,
-        quality: `${quality}p - ${Math.round(format.fps || 30)} fps`,
-        size: formatFileSize(format.filesize || format.filesize_approx)
-      });
-    }
-  });
+  // Tri par qualité et sélection des meilleures options
+  const qualities = [1080, 720, 480].map(height => {
+    const format = videoFormats.find(f => f.height === height);
+    return format ? {
+      type: `MP4 ${height}p`,
+      quality: `${height}p`,
+      size: formatFileSize(format.filesize)
+    } : null;
+  }).filter(Boolean);
   
-  // Format meilleure qualité
-  const bestVideo = videoFormats.reduce((best, current) => 
-    (current.height || 0) > (best.height || 0) ? current : best, {}
-  );
-  if (bestVideo.height) {
-    formats.unshift({
-      type: 'Vidéo MP4 (Meilleure)',
-      quality: `${bestVideo.height}p - ${Math.round(bestVideo.fps || 30)} fps`,
-      size: formatFileSize(bestVideo.filesize || bestVideo.filesize_approx)
-    });
-  }
+  formats.push(...qualities);
   
+  // Durée formatée
   const duration = videoInfo.duration ? 
     `${Math.floor(videoInfo.duration / 60)}:${String(videoInfo.duration % 60).padStart(2, '0')}` : 
-    'Inconnue';
+    'N/A';
   
   return {
     success: true,
     id: videoInfo.id,
     title: videoInfo.title || 'Titre indisponible',
-    duration: duration,
+    duration,
     thumbnail: videoInfo.thumbnail,
     uploader: videoInfo.uploader,
     view_count: videoInfo.view_count,
-    upload_date: videoInfo.upload_date,
-    formats: formats,
-    cached: videoInfoCache.has(videoInfo.id)
+    formats,
+    cached: true // Toujours true car on vient de le mettre en cache
   };
 }
 
 async function executeDownload(res, url, format, quality) {
-  return new Promise(async (resolve, reject) => {
-    let hasStarted = false;
-    let hasData = false;
-    let bytesTransferred = 0;
-    
-    const timeoutId = setTimeout(() => {
-      if (!hasStarted || !hasData) {
-        reject(new Error('Timeout de téléchargement'));
-      }
-    }, REQUEST_TIMEOUT_MS);
-    
-    try {
-      // Obtenir les infos de la vidéo
-      const videoInfo = await getVideoInfoCached(url);
-      const safeTitle = sanitizeFilename(videoInfo.title);
-      const extension = format === 'audio' ? 'mp3' : 'mp4';
-      const filename = `${safeTitle}_${Date.now()}.${extension}`;
+  let hasStarted = false;
+  let bytesTransferred = 0;
+  
+  const timeoutId = setTimeout(() => {
+    if (!hasStarted) {
+      throw new Error('Timeout de téléchargement');
+    }
+  }, REQUEST_TIMEOUT_MS);
+  
+  try {
+    // Récupération rapide des infos (peut être depuis le cache)
+    const videoInfo = await getVideoInfoCached(url);
+    const safeTitle = sanitizeFilename(videoInfo.title);
+    const extension = format === 'audio' ? 'mp3' : 'mp4';
+    const filename = `${safeTitle}.${extension}`;
 
-      // Headers optimisés
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      res.setHeader('Content-Type', format === 'audio' ? 'audio/mpeg' : 'video/mp4');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('X-Video-Title', videoInfo.title);
-      res.setHeader('X-Video-Duration', videoInfo.duration || '0');
+    // Headers optimisés
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', format === 'audio' ? 'audio/mpeg' : 'video/mp4');
+    res.setHeader('Cache-Control', 'no-cache');
 
-      // Construction des arguments yt-dlp optimisés
-      let args = ['--no-playlist', '--no-warnings'];
+    // Arguments yt-dlp ultra-optimisés pour serveur faible
+    let args = ['--no-warnings', '--quiet', '--no-playlist'];
+    
+    if (hasCookies) {
+      args.push('--cookies', cookiesPath);
+    }
+
+    if (format === 'audio') {
+      args.push(
+        '--extract-audio',
+        '--audio-format', 'mp3',
+        '--audio-quality', '128K', // Réduit de 192K à 128K
+        '--format', 'bestaudio[ext=m4a]/bestaudio'
+      );
+    } else {
+      let formatSelector = 'best[height<=720][ext=mp4]/best[height<=720]'; // Par défaut 720p max
       
-      if (hasCookies) {
-        args.push('--cookies', cookiesPath);
+      switch(quality) {
+        case '1080':
+          formatSelector = 'best[height<=1080][ext=mp4]/best[height<=1080]';
+          break;
+        case '480':
+          formatSelector = 'best[height<=480][ext=mp4]/best[height<=480]';
+          break;
       }
+      
+      args.push('--format', formatSelector);
+    }
 
-      // Configuration spécifique selon le format
-      if (format === 'audio') {
-        args.push(
-          '--extract-audio',
-          '--audio-format', 'mp3',
-          '--audio-quality', '192K',
-          '--prefer-ffmpeg',
-          '--format', 'bestaudio[ext=m4a]/bestaudio/best'
-        );
-      } else {
-        let formatSelector;
-        switch(quality) {
-          case 'best':
-            formatSelector = 'best[ext=mp4][height<=1080]/bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[height<=1080]';
-            break;
-          case '1080':
-            formatSelector = 'best[height<=1080][ext=mp4]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]';
-            break;
-          case '720':
-            formatSelector = 'best[height<=720][ext=mp4]/bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]';
-            break;
-          case '480':
-            formatSelector = 'best[height<=480][ext=mp4]/bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]';
-            break;
-          default:
-            formatSelector = 'best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best';
-        }
-        
-        args.push(
-          '--format', formatSelector,
-          '--merge-output-format', 'mp4'
-        );
-      }
+    args.push('-o', '-', url);
 
-      args.push('-o', '-', url);
-      hasStarted = true;
+    console.log(`🚀 Début téléchargement: ${filename.substring(0, 20)}...`);
+    hasStarted = true;
 
-      console.log(`🚀 Démarrage téléchargement: ${filename.substring(0, 30)}...`);
+    const ytProcess = spawn('yt-dlp', args, {
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
 
-      const ytProcess = spawn('yt-dlp', args, {
-        stdio: ['ignore', 'pipe', 'pipe']
-      });
+    let errorOutput = '';
 
-      let errorOutput = '';
-      let lastProgressTime = Date.now();
+    ytProcess.stdout.on('data', (chunk) => {
+      bytesTransferred += chunk.length;
+      res.write(chunk);
+    });
 
-      ytProcess.stdout.on('data', (chunk) => {
-        if (!hasData) {
-          hasData = true;
-          console.log(`📊 Premier chunk reçu pour: ${filename.substring(0, 20)}...`);
-        }
-        
-        bytesTransferred += chunk.length;
-        
-        // Log de progression toutes les 5 secondes
-        const now = Date.now();
-        if (now - lastProgressTime > 5000) {
-          console.log(`📈 Progression: ${Math.round(bytesTransferred / 1024 / 1024)}MB - ${filename.substring(0, 20)}...`);
-          lastProgressTime = now;
-        }
-        
-        res.write(chunk);
-      });
+    ytProcess.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
 
-      ytProcess.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-
+    return new Promise((resolve, reject) => {
       ytProcess.on('close', (code) => {
         clearTimeout(timeoutId);
         
         if (code === 0) {
-          console.log(`✅ Téléchargement terminé: ${Math.round(bytesTransferred / 1024 / 1024)}MB - ${filename.substring(0, 30)}...`);
+          console.log(`✅ Téléchargement terminé: ${Math.round(bytesTransferred / 1024 / 1024)}MB`);
           res.end();
           resolve();
         } else {
-          console.error(`❌ Échec téléchargement (code: ${code}) - ${errorOutput.substring(0, 100)}`);
-          if (!hasData) {
-            reject(new Error(`Échec du téléchargement: ${errorOutput.substring(0, 200)}`));
+          console.error(`❌ Échec téléchargement (${code}): ${errorOutput.substring(0, 50)}`);
+          if (bytesTransferred === 0) {
+            reject(new Error('Échec du téléchargement'));
           } else {
             res.end();
             resolve();
@@ -421,85 +410,51 @@ async function executeDownload(res, url, format, quality) {
 
       ytProcess.on('error', (err) => {
         clearTimeout(timeoutId);
-        console.error(`💥 Erreur processus téléchargement:`, err.message);
-        if (!hasData) {
-          reject(new Error('Erreur serveur: yt-dlp indisponible'));
+        console.error(`💥 Erreur processus: ${err.message}`);
+        if (bytesTransferred === 0) {
+          reject(new Error('Service indisponible'));
         } else {
           res.end();
           resolve();
         }
       });
+    });
 
-    } catch (error) {
-      clearTimeout(timeoutId);
-      console.error(`💀 Erreur globale téléchargement:`, error.message);
-      reject(error);
-    }
-  });
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
 }
 
 // ===============================
-// ROUTES PRINCIPALES
+// ROUTES OPTIMISÉES
 // ===============================
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Documentation simplifiée
 app.get("/api-docs", (req, res) => {
   res.json({
-    title: "YouTube Downloader API - Render Optimized",
-    version: "3.0",
-    description: "API haute performance pour télécharger des vidéos YouTube",
+    title: "YouTube Downloader API - Koyeb Optimized",
+    version: "4.0",
     server_info: {
-      concurrent_downloads: `${activeDownloads}/${MAX_CONCURRENT_DOWNLOADS}`,
-      concurrent_info_requests: `${activeInfoRequests}/${MAX_CONCURRENT_INFO_REQUESTS}`,
-      memory_usage: `${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB`,
-      cache_size: videoInfoCache.size,
-      total_requests: totalRequests,
-      error_rate: `${Math.round(errorCount / Math.max(totalRequests, 1) * 100)}%`
+      downloads: `${activeDownloads}/${MAX_CONCURRENT_DOWNLOADS}`,
+      info_requests: `${activeInfoRequests}/${MAX_CONCURRENT_INFO_REQUESTS}`,
+      memory: `${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB`,
+      cache: videoInfoCache.size
     },
     endpoints: {
-      "GET /info": {
-        description: "Récupérer les informations d'une vidéo avec URL complète (mis en cache)",
-        parameters: { url: "URL YouTube complète (obligatoire)" },
-        example: "/info?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-      },
-      "GET /info/:videoId": {
-        description: "Récupérer les informations d'une vidéo avec ID (mis en cache)",
-        parameters: { videoId: "ID de la vidéo YouTube (obligatoire)" },
-        example: "/info/dQw4w9WgXcQ"
-      },
-      "GET /download": {
-        description: "Télécharger avec URL complète (gestion de queue)",
-        parameters: {
-          url: "URL YouTube complète (obligatoire)",
-          format: "video ou audio (optionnel, défaut: video)",
-          quality: "best, 1080, 720, 480 (optionnel, défaut: best)"
-        },
-        example: "/download?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ&format=audio"
-      },
-      "GET /download/:videoId": {
-        description: "Télécharger avec ID de vidéo (gestion de queue)",
-        parameters: {
-          videoId: "ID de la vidéo YouTube (obligatoire)",
-          format: "video ou audio (optionnel, défaut: video)",
-          quality: "best, 1080, 720, 480 (optionnel, défaut: best)"
-        },
-        example: "/download/dQw4w9WgXcQ?format=video&quality=720"
-      }
-    },
-    limits: {
-      max_concurrent_downloads: MAX_CONCURRENT_DOWNLOADS,
-      max_concurrent_info_requests: MAX_CONCURRENT_INFO_REQUESTS,
-      request_timeout: `${REQUEST_TIMEOUT_MS / 1000}s`,
-      info_timeout: `${INFO_TIMEOUT_MS / 1000}s`,
-      cache_ttl: `${CACHE_TTL_MS / 1000 / 60}min`
+      "GET /info?url=URL": "Informations vidéo",
+      "GET /info/:videoId": "Informations par ID",
+      "GET /download?url=URL&format=audio/video&quality=480/720/1080": "Téléchargement",
+      "GET /download/:videoId?format=audio/video&quality=480/720/1080": "Téléchargement par ID"
     }
   });
 });
 
-// Route info avec gestion de queue
+// Routes info optimisées
 app.get("/info", (req, res) => {
   const { url } = req.query;
   
@@ -507,24 +462,8 @@ app.get("/info", (req, res) => {
     errorCount++;
     return res.status(400).json({ 
       success: false, 
-      error: 'URL YouTube valide requise' 
+      error: 'URL YouTube requise' 
     });
-  }
-  
-  if (activeInfoRequests >= MAX_CONCURRENT_INFO_REQUESTS) {
-    const task = {
-      execute: () => handleInfoRequest(res, url)
-    };
-    infoQueue.push(task);
-    
-    res.status(202).json({
-      success: false,
-      message: 'Requête mise en queue',
-      queue_position: infoQueue.length,
-      estimated_wait: `${infoQueue.length * 3}s`
-    });
-    
-    return;
   }
   
   handleInfoRequest(res, url);
@@ -537,56 +476,55 @@ app.get("/info/:videoId", (req, res) => {
     errorCount++;
     return res.status(400).json({ 
       success: false, 
-      error: 'ID de vidéo requis' 
+      error: 'ID vidéo requis' 
     });
   }
   
   const url = buildYouTubeUrl(videoId);
-  
-  if (activeInfoRequests >= MAX_CONCURRENT_INFO_REQUESTS) {
-    const task = {
-      execute: () => handleInfoRequest(res, url)
-    };
-    infoQueue.push(task);
-    
-    res.status(202).json({
-      success: false,
-      message: 'Requête mise en queue',
-      queue_position: infoQueue.length,
-      estimated_wait: `${infoQueue.length * 3}s`
-    });
-    
-    return;
-  }
-  
   handleInfoRequest(res, url);
 });
 
 async function handleInfoRequest(res, url) {
+  if (activeInfoRequests >= MAX_CONCURRENT_INFO_REQUESTS) {
+    infoQueue.push({
+      execute: () => handleInfoRequest(res, url)
+    });
+    
+    return res.status(202).json({
+      success: false,
+      message: 'Requête en attente',
+      queue_position: infoQueue.length
+    });
+  }
+  
+  activeInfoRequests++;
+  
   try {
     const videoInfo = await getVideoInfoCached(url);
     const formattedInfo = formatVideoInfo(videoInfo);
     res.json(formattedInfo);
   } catch (error) {
     errorCount++;
-    console.error('❌ Erreur info vidéo:', error.message);
-    res.status(500).json({ 
+    console.error('❌ Erreur info:', error.message);
+    res.status(error.message.includes('indisponible') ? 404 : 
+               error.message.includes('privée') ? 403 : 500).json({ 
       success: false, 
-      error: error.message.substring(0, 100) 
+      error: error.message
     });
   } finally {
+    activeInfoRequests--;
     processInfoQueue();
   }
 }
 
-// Routes de téléchargement avec gestion de queue
+// Routes téléchargement optimisées
 app.get("/download/:videoId", (req, res) => {
   const { videoId } = req.params;
-  const { format = 'video', quality = 'best' } = req.query;
+  const { format = 'video', quality = '720' } = req.query; // Par défaut 720p
   
   if (!videoId) {
     errorCount++;
-    return res.status(400).json({ error: 'ID de vidéo requis' });
+    return res.status(400).json({ error: 'ID vidéo requis' });
   }
   
   const url = buildYouTubeUrl(videoId);
@@ -594,11 +532,11 @@ app.get("/download/:videoId", (req, res) => {
 });
 
 app.get("/download", (req, res) => {
-  const { url, format = 'video', quality = 'best' } = req.query;
+  const { url, format = 'video', quality = '720' } = req.query;
   
   if (!url || !isValidYouTubeUrl(url)) {
     errorCount++;
-    return res.status(400).json({ error: 'URL YouTube valide requise' });
+    return res.status(400).json({ error: 'URL YouTube requise' });
   }
   
   handleDownloadRequest(res, url, format, quality);
@@ -606,181 +544,129 @@ app.get("/download", (req, res) => {
 
 function handleDownloadRequest(res, url, format, quality) {
   if (activeDownloads >= MAX_CONCURRENT_DOWNLOADS) {
-    const queuePosition = downloadQueue.length + 1;
-    const estimatedWait = queuePosition * 2; // 2 minutes par téléchargement en moyenne
-    
-    const task = {
+    downloadQueue.push({
       execute: () => executeDownloadWrapper(res, url, format, quality)
-    };
-    downloadQueue.push(task);
-    
-    res.status(202).json({
-      error: 'Serveur occupé - Téléchargement mis en queue',
-      queue_position: queuePosition,
-      estimated_wait: `${estimatedWait}min`,
-      active_downloads: activeDownloads,
-      max_concurrent: MAX_CONCURRENT_DOWNLOADS
     });
     
-    return;
+    return res.status(202).json({
+      error: 'Téléchargement en attente',
+      queue_position: downloadQueue.length,
+      estimated_wait: `${downloadQueue.length * 90}s`
+    });
   }
   
   executeDownloadWrapper(res, url, format, quality);
 }
 
 async function executeDownloadWrapper(res, url, format, quality) {
+  activeDownloads++;
+  
   try {
     await executeDownload(res, url, format, quality);
   } catch (error) {
     errorCount++;
-    console.error('💀 Erreur téléchargement wrapper:', error.message);
+    console.error('💀 Erreur téléchargement:', error.message);
     if (!res.headersSent) {
-      if (error.message.includes('unavailable')) {
-        res.status(404).json({ error: 'Vidéo indisponible' });
-      } else if (error.message.includes('Private')) {
-        res.status(403).json({ error: 'Vidéo privée' });
-      } else if (error.message.includes('Timeout')) {
-        res.status(408).json({ error: 'Timeout de téléchargement' });
-      } else {
-        res.status(500).json({ error: error.message.substring(0, 100) });
-      }
+      res.status(error.message.includes('indisponible') ? 404 :
+                 error.message.includes('privée') ? 403 :
+                 error.message.includes('Timeout') ? 408 : 500)
+         .json({ error: error.message });
     }
   } finally {
+    activeDownloads--;
     processDownloadQueue();
   }
 }
 
-// Routes utilitaires
+// Stats simplifiées
 app.get("/api/stats", (req, res) => {
-  const memUsage = process.memoryUsage();
+  const mem = process.memoryUsage();
   
   res.json({
-    server: "YouTube Downloader API - Render Optimized",
-    version: "3.0",
+    version: "4.0-koyeb",
     uptime: Math.round(process.uptime()),
     performance: {
-      active_downloads: activeDownloads,
-      max_concurrent_downloads: MAX_CONCURRENT_DOWNLOADS,
-      active_info_requests: activeInfoRequests,
-      max_concurrent_info_requests: MAX_CONCURRENT_INFO_REQUESTS,
-      download_queue_length: downloadQueue.length,
-      info_queue_length: infoQueue.length
+      downloads: `${activeDownloads}/${MAX_CONCURRENT_DOWNLOADS}`,
+      info: `${activeInfoRequests}/${MAX_CONCURRENT_INFO_REQUESTS}`,
+      queues: `DL:${downloadQueue.length} INFO:${infoQueue.length}`
     },
-    memory: {
-      rss_mb: Math.round(memUsage.rss / 1024 / 1024),
-      heap_used_mb: Math.round(memUsage.heapUsed / 1024 / 1024),
-      heap_total_mb: Math.round(memUsage.heapTotal / 1024 / 1024),
-      external_mb: Math.round(memUsage.external / 1024 / 1024)
-    },
-    cache: {
-      entries: videoInfoCache.size,
-      ttl_minutes: CACHE_TTL_MS / 1000 / 60
-    },
-    requests: {
-      total: totalRequests,
-      errors: errorCount,
-      error_rate: `${Math.round(errorCount / Math.max(totalRequests, 1) * 100)}%`
-    },
-    features: {
-      cookies_available: hasCookies,
-      gc_available: typeof global.gc !== 'undefined',
-      last_cleanup: new Date(lastCleanup).toISOString()
-    }
+    memory: `${Math.round(mem.rss / 1024 / 1024)}MB`,
+    cache: videoInfoCache.size,
+    requests: totalRequests,
+    errors: errorCount
   });
 });
 
-app.get("/api/health", (req, res) => {
-  const memUsageMB = Math.round(process.memoryUsage().rss / 1024 / 1024);
-  const isHealthy = memUsageMB < MEMORY_THRESHOLD_MB && 
-                    activeDownloads < MAX_CONCURRENT_DOWNLOADS;
-  
-  res.status(isHealthy ? 200 : 503).json({
-    status: isHealthy ? "OK" : "DEGRADED",
-    timestamp: new Date().toISOString(),
-    service: "YouTube Downloader - Render Optimized",
-    version: "3.0",
-    memory_usage_mb: memUsageMB,
-    memory_threshold_mb: MEMORY_THRESHOLD_MB,
-    active_downloads: activeDownloads,
-    server_load: `${Math.round((activeDownloads / MAX_CONCURRENT_DOWNLOADS) * 100)}%`
+// Health check ultra-simple
+app.get("/health", (req, res) => {
+  const memMB = Math.round(process.memoryUsage().rss / 1024 / 1024);
+  res.status(memMB < MEMORY_THRESHOLD_MB ? 200 : 503).json({
+    status: memMB < MEMORY_THRESHOLD_MB ? "OK" : "OVERLOAD",
+    memory: `${memMB}MB`
   });
 });
 
-// Middleware 404
+// 404 simplifié
 app.use((req, res) => {
-  res.status(404).json({
-    error: "Endpoint non trouvé",
-    available_endpoints: [
-      'GET /', 'GET /api-docs', 'GET /info', 'GET /info/:videoId',
-      'GET /download', 'GET /download/:videoId', 'GET /api/stats', 'GET /api/health'
-    ]
-  });
+  res.status(404).json({ error: "Endpoint introuvable" });
 });
 
-// Middleware d'erreurs globales
+// Gestion d'erreur globale
 app.use((err, req, res, next) => {
   errorCount++;
-  console.error('🚨 Erreur Express:', err.message);
-  res.status(500).json({ error: 'Erreur serveur interne' });
+  console.error('🚨 Erreur:', err.message);
+  res.status(500).json({ error: 'Erreur serveur' });
 });
 
-// Démarrage du serveur
+// Démarrage optimisé
 app.listen(PORT, () => {
-  console.log(`🚀 YouTube Downloader démarré sur le port ${PORT}`);
-  console.log(`📊 Limites: ${MAX_CONCURRENT_DOWNLOADS} DL / ${MAX_CONCURRENT_INFO_REQUESTS} INFO`);
-  console.log(`💾 Cache TTL: ${CACHE_TTL_MS / 1000 / 60}min`);
+  console.log(`🚀 Server started on port ${PORT}`);
+  console.log(`📊 Limits: ${MAX_CONCURRENT_DOWNLOADS} DL / ${MAX_CONCURRENT_INFO_REQUESTS} INFO`);
+  console.log(`💾 Cache: ${MAX_CACHE_SIZE} entries, TTL: ${CACHE_TTL_MS / 60000}min`);
   console.log(`🍪 Cookies: ${hasCookies ? '✅' : '❌'}`);
-  console.log(`🌐 Prêt à traiter les requêtes simultanées!`);
+  console.log(`⚡ Optimized for Koyeb (512MB RAM)`);
   
-  // Nettoyage initial
   performCleanup();
 });
 
-// Gestion propre de l'arrêt
+// Gestion des arrêts
 process.on('SIGINT', () => {
-  console.log('\n👋 Arrêt du serveur...');
-  console.log(`📊 Statistiques finales: ${totalRequests} requêtes, ${errorCount} erreurs`);
+  console.log('\n👋 Arrêt serveur...');
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  console.log('\n🔄 Redémarrage serveur (SIGTERM)...');
-  console.log(`📊 Statistiques: ${totalRequests} requêtes, ${errorCount} erreurs`);
+  console.log('\n🔄 Redémarrage...');
   process.exit(0);
 });
 
-// Gestion des erreurs non capturées
 process.on('uncaughtException', (err) => {
-  console.error('💥 Exception non capturée:', err.message);
-  console.error(err.stack);
-  // En production, on peut choisir de continuer ou redémarrer
+  console.error('💥 Exception:', err.message);
   if (process.env.NODE_ENV === 'production') {
-    console.log('🔄 Redémarrage en cours...');
+    console.log('🔄 Restart...');
     process.exit(1);
   }
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('💥 Promesse rejetée non gérée:', reason);
-  console.error('Promise:', promise);
+process.on('unhandledRejection', (reason) => {
+  console.error('💥 Promise rejected:', reason);
   errorCount++;
 });
 
-// Optimisation pour Render - Garder le serveur actif
-if (process.env.RENDER) {
-  console.log('🌐 Détection Render - Optimisations appliquées');
+// Optimisations spécifiques Koyeb
+if (process.env.KOYEB || process.env.NODE_ENV === 'production') {
+  console.log('🌐 Koyeb optimizations enabled');
   
-  // Ping automatique pour éviter l'hibernation (toutes les 10 minutes)
+  // Keep-alive moins fréquent pour économiser les ressources
   setInterval(() => {
-    const memUsage = Math.round(process.memoryUsage().rss / 1024 / 1024);
-    console.log(`💓 Keep-alive - Mem: ${memUsage}MB, DL: ${activeDownloads}, Info: ${activeInfoRequests}`);
-  }, 10 * 60 * 1000);
+    const memMB = Math.round(process.memoryUsage().rss / 1024 / 1024);
+    console.log(`💓 Keep-alive - ${memMB}MB, DL:${activeDownloads}, INFO:${activeInfoRequests}`);
+  }, 15 * 60 * 1000); // 15 minutes
   
-  // Nettoyage plus agressif pour Render
+  // Nettoyage plus fréquent si inactif
   setInterval(() => {
     if (activeDownloads === 0 && activeInfoRequests === 0) {
       performCleanup();
-      console.log('🧹 Nettoyage agressif Render effectué');
     }
-  }, 2 * 60 * 1000); // Toutes les 2 minutes si inactif
+  }, 60 * 1000); // 1 minute
 }
