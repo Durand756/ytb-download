@@ -4,6 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>API de Durand</title>
+      <!-- Force HTTPS (HSTS) -->
+  <meta http-equiv="Strict-Transport-Security" content="max-age=31536000; includeSubDomains">
+
+  <!-- Empêcher le contenu de sources non approuvées (CSP) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none';">
+
+  <!-- Empêcher l'inclusion dans un iframe (anti-clickjacking) -->
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+
+  <!-- Bloquer le MIME-sniffing -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+
+  <!-- Limiter les infos envoyées dans le header Referrer -->
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+
+  <!-- Restreindre les permissions navigateur -->
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=()">
     <style>
         body {
             display: flex;
