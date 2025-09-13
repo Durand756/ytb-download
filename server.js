@@ -13,7 +13,7 @@ const hasCookies = fs.existsSync(cookiesPath);
 // ===============================
 
 // Limites adaptées à Koyeb (512MB RAM, 0.1 vCPU)
-const MAX_CONCURRENT_DOWNLOADS = 2;  // Réduit pour économiser la mémoire
+const MAX_CONCURRENT_DOWNLOADS = 4;  // Réduit pour économiser la mémoire
 const MAX_CONCURRENT_INFO_REQUESTS = 5; // Maintenu car moins coûteux
 const MEMORY_THRESHOLD_MB = 400;
 const REQUEST_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes au lieu de 10
